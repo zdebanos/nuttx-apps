@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_SAMOCON_EXAMPLE
+	tristate "Samocon example"
+	default n
+	---help---
+		Enable the \"Samocon\" example
+
+if EXAMPLES_SAMOCON_EXAMPLE
+
+config EXAMPLES_SAMOCON_EXAMPLE_PROGNAME
+	string "Program name"
+	default "hello"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config EXAMPLES_SAMOCON_EXAMPLE_PRIORITY
+	int "Hello task priority"
+	default 100
+
+config EXAMPLES_SAMOCON_EXAMPLE_STACKSIZE
+	int "Hello stack size"
+	default DEFAULT_TASK_STACKSIZE
+
+endif
