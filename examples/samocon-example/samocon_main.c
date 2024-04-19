@@ -44,7 +44,7 @@
 void print_help(void)
 {
   printf("Usage: samocon [choice]\n");
-  printf("Choice = afec0, pwm0, pwm1, hall, commutate, i2c_eeprom\n");
+  printf("Choice = afec0, pwm0, pwm1, hall, commutate, i2c_eeprom, calibrate_adcs\n");
 }
 
 static const char *afec0_channel_to_name(uint8_t ch)
@@ -112,7 +112,7 @@ static int afec0_example(void)
         {
           for (int j = 0; j < channels; ++j)
             {
-              printf("%s: %d\n", afec0_channel_to_name(sample[j].am_channel),
+              printf("%s: %ld\n", afec0_channel_to_name(sample[j].am_channel),
                       sample[j].am_data);
             }
           putchar('\n');
@@ -163,11 +163,63 @@ static int pwm0_example(void)
         {
           printf("fail get ioctl\n");
         }
-      printf("Got freq = %d\n", got_info.frequency);
+      printf("Got freq = %lu\n", got_info.frequency);
       for(int i = 0; i < 4; ++i)
         {
-          printf("Ch%d duty = %d\n", info.channels[i].channel, info.channels[i].duty);
+          printf("Ch%d duty = %lu\n", info.channels[i].channel, info.channels[i].duty);
         }
+  return OK;
+}
+
+static int pwm0_simple_example(void)
+{
+  struct pwm_info_s info;
+  int fd = open("/dev/pwm0", O_RDONLY);
+  int fd0 = open("/dev/pwmb_inh0", O_RDWR);
+  int fd1 = open("/dev/pwmb_inh1", O_RDWR);
+  int fd2 = open("/dev/pwmb_inh2", O_RDWR);
+  int fd3 = open("/dev/pwmb_inh3", O_RDWR);
+
+  ioctl(fd0, GPIOC_WRITE, (unsigned long) 1);
+  ioctl(fd1, GPIOC_WRITE, (unsigned long) 1);
+  ioctl(fd2, GPIOC_WRITE, (unsigned long) 1);
+  ioctl(fd3, GPIOC_WRITE, (unsigned long) 1);
+
+
+  if (fd < 0)
+    {
+      printf("error opening pwm!\n");
+      return ERROR;
+    }
+  for (int i = 0; i < 4; ++i)
+    {
+      info.channels[i].channel = (i+1);
+      info.channels[i].duty = 32000;
+      info.channels[i].cpol = PWM_CPOL_HIGH;
+      info.channels[i].dcpol = PWM_DCPOL_LOW;
+      info.frequency = 2000;
+    }
+  int ret = ioctl(fd, PWMIOC_SETCHARACTERISTICS, (unsigned long)((uintptr_t) &info));
+  if (ret < 0)
+    {
+      printf("Ioctl of pwm0 failed!\n");
+    }
+  ret = ioctl(fd, PWMIOC_START, (unsigned long)((uintptr_t) &info));
+  if (ret < 0)
+    {
+      printf("Ioctl start of pwm0 failed!\n");
+    }
+  printf("Set duty OK!\n"); 
+  printf("Press anything to turn off the pwm!\n");
+  getchar();
+  ret = ioctl(fd, PWMIOC_STOP, (unsigned long)((uintptr_t) &info));
+  if (ret < 0)
+    {
+      printf("Ioctl start of pwm0 failed!\n");
+    }
+  printf("Check the PWM! Press anything to turn off the app!\n");
+  getchar();
+  close(fd);
   return OK;
 }
 
@@ -175,6 +227,8 @@ static int pwm1_example(void)
 {
   struct pwm_info_s info;
   int fd = open("/dev/pwm1", O_RDONLY);
+  (void)info;
+  (void)fd;
   return OK;
 }
 
@@ -621,7 +675,7 @@ int calibrate_measure_adc(int adc_fd, struct adc_msg_s *dest,
   int ret;
   int measured = 0;
   ret = ioctl(adc_fd, ANIOC_RESET_FIFO, 0);
-  while (measured < 16)
+  while (measured < 1)
     {
       ret = ioctl(adc_fd, ANIOC_TRIGGER, 0);
       if (ret < 0)
@@ -644,7 +698,7 @@ int calibrate_measure_adc(int adc_fd, struct adc_msg_s *dest,
     }
   for (int i = 0; i < 8; ++i)
     {
-      buf[i] >>= 4;
+      //buf[i] >>= 4;
       dest->am_data = buf[i];
     }
   return OK;
@@ -660,7 +714,7 @@ int32_t adc0_channel_lookup(struct adc_msg_s msgs[],
                              size_t channels,
                              struct adc_lookup_s look)
 {
-  uint8_t channel;
+  uint8_t channel = 0;
   switch (look.phase)
     {
     case 0:
@@ -722,7 +776,7 @@ int32_t adc1_channel_lookup(struct adc_msg_s msgs[],
                              size_t channels,
                              struct adc_lookup_s look)
 {
-  uint8_t channel;
+  uint8_t channel = 0;
   switch (look.phase)
     {
     case 0:
@@ -748,7 +802,7 @@ int32_t adc1_channel_lookup(struct adc_msg_s msgs[],
     case 2:
       if (look.high)
         {
-          channel = 6;          
+          channel = 2;
         }
       else
         {
@@ -758,7 +812,7 @@ int32_t adc1_channel_lookup(struct adc_msg_s msgs[],
     case 3:
       if (look.high)
         {
-          channel = 2;
+          channel = 6;          
         }
       else
         {
@@ -998,6 +1052,10 @@ int main(int argc, FAR char *argv[])
   else if (strcmp(argv[1], "pwm0") == 0)
     {
       return pwm0_example();
+    }
+  else if (strcmp(argv[1], "pwm0_simple") == 0)
+    {
+      return pwm0_simple_example();
     }
   else if (strcmp(argv[1], "pwm1") == 0)
     {
