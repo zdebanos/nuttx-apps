@@ -1,5 +1,5 @@
 ############################################################################
-# apps/examples/hello/Makefile
+# apps/examples/samocon/Makefile
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -20,15 +20,16 @@
 
 include $(APPDIR)/Make.defs
 
-# Hello, World! built-in application info
+# Samocon Examples Info
 
 PROGNAME  = $(CONFIG_EXAMPLES_SAMOCON_EXAMPLE_PROGNAME)
 PRIORITY  = $(CONFIG_EXAMPLES_SAMOCON_EXAMPLE_PRIORITY)
 STACKSIZE = $(CONFIG_EXAMPLES_SAMOCON_EXAMPLE_STACKSIZE)
 MODULE    = $(CONFIG_EXAMPLES_SAMOCON_EXAMPLE)
 
-# Hello, World! Example
+# Samocon Example
 
-MAINSRC = samocon_main.c
+MAINSRC = samocon_main.c adcs.c bldc_commutate.c calibrate_adcs.c halls.c \
+          i2c.c pwms.c rt_task.c
 
 include $(APPDIR)/Application.mk
