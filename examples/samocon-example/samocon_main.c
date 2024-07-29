@@ -43,7 +43,7 @@
 void print_help(void)
 {
   printf("Usage: samocon [choice]\n");
-  printf("Choice = afec0, pwm0, pwm1, hall, commutate, i2c_eeprom, calibrate_adcs\n");
+  printf("Choice = afec0, rstest, pwm0, pwm1, hall, commutate, i2c_eeprom, calibrate_adcs\n");
 }
 
 int main(int argc, FAR char *argv[])
@@ -56,6 +56,10 @@ int main(int argc, FAR char *argv[])
   if (strcmp(argv[1], "afec0") == 0)
     {
       return afec0_example();
+    }
+  if (strcmp(argv[1], "rstest") == 0) 
+    {
+      return rstest_example();
     }
   else if (strcmp(argv[1], "pwm0") == 0)
     {
