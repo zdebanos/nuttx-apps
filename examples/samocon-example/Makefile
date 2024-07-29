@@ -30,6 +30,6 @@ MODULE    = $(CONFIG_EXAMPLES_SAMOCON_EXAMPLE)
 # Samocon Example
 
 MAINSRC = samocon_main.c adcs.c bldc_commutate.c calibrate_adcs.c halls.c \
-          i2c.c pwms.c rt_task.c rs232485.c
+          i2c.c pwms.c rt_task.c rs232485.c canbus.c
 
 include $(APPDIR)/Application.mk
