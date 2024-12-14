@@ -23,6 +23,7 @@
  ****************************************************************************/
 
 #include <sched.h>
+#include <limits.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -42,6 +43,10 @@
  * Private Types
  ****************************************************************************/
 
+#ifdef CONFIG_SYSTEMTICK_HOOK
+extern sem_t g_waitsem;
+#endif
+
 struct cyclictest_config_s
 {
   int clock;
@@ -52,6 +57,7 @@ struct cyclictest_config_s
   int threads;
   int policy;
   int prio;
+  int nanosleep;
 };
 
 struct thread_param_s
@@ -61,13 +67,16 @@ struct thread_param_s
   unsigned long interval;
   unsigned long max_cycles;
   struct thread_stats_s *stats;
+  int clock;
 };
 
 struct thread_stats_s
 {
   long *hist_array;
+  long hist_overflow;
   long min;
   long max;
+  double avg;
   pthread_t id;
 };
 
@@ -75,6 +84,7 @@ struct thread_stats_s
  * Private Functions
  ****************************************************************************/
 
+static bool running;
 static struct cyclictest_config_s config;
 
 static const struct option optargs[] =
@@ -85,7 +95,8 @@ static const struct option optargs[] =
   {"interval", optional_argument, 0, 'i'},
   {"loops", optional_argument, 0, 'l'},
   {"threads", optional_argument, 0, 't'},
-  {"policy", optional_argument, 0, 'y'}
+  {"policy", optional_argument, 0, 'y'},
+  {"nanosleep", optional_argument, 0, 'n'}
 };
 
 static void print_help(void)
@@ -101,7 +112,12 @@ static void print_help(void)
     "  -i --interval [US]: The thread interval. Default is 1000us.\n"
     "  -l --loops [N]: The number of measurement loops. Default is 0 (endless).\n"
     "  -t --threads [N]: The number of test threads to be created. Default is 1.\n"
-    "  -y --policy [NAME]: Set the scheduler policy, where NAME is fifo or rr."
+    "  -y --policy [NAME]: Set the scheduler policy, where NAME is fifo or rr.\n"
+    "  -n --nanosleep [METHOD]: Set the testing method: 0 selects clock_nanosleep,\n"
+    "     1 waits for a semaphore (sem_t g_semwait) posted by a board_timerhook function,\n"
+    "     must be compiled with CONFIG_SYSTEMTICK_HOOK. 2 selects the timer TODO,\n"
+    "     WARNING: choosing 1 or 2 works only with one thread,\n"
+    "     the -t value is therefore set to 1."
   );
 }
 
@@ -221,6 +237,16 @@ static bool parse_args(int argc, char * const argv[])
             return false;
           }
         break;
+      case 'n':
+        decimal = arg_decimal(optarg);
+        if (decimal < 0 || decimal > 2)
+          {
+            /* Only 0 ... 2*/
+
+            return false;
+          }
+        config.nanosleep = decimal;
+        break;
       case '?':
         return false;
       default:
@@ -234,11 +260,117 @@ static bool parse_args(int argc, char * const argv[])
   return true;
 }
 
+
+static inline void tsnorm(struct timespec *ts)
+{
+	while (ts->tv_nsec >= NSEC_PER_SEC)
+    {
+      ts->tv_nsec -= NSEC_PER_SEC;
+      ts->tv_sec++;
+    }
+}
+
+static inline int64_t timediff(struct timespec t1, struct timespec t2)
+{
+  int64_t ret;
+  ret = 1000000 * (int64_t) ((int) t1.tv_sec - (int) t2.tv_sec);
+  ret += (int64_t) ((int) t1.tv_nsec - (int) t2.tv_nsec);
+  return ret;
+}
+
 static void *testthread(void *arg)
 {
+  int ret;
+  int64_t diff;
   struct thread_param_s *param = (struct thread_param_s*)arg;
-  struct timespec now, next; 
+  struct thread_stats_s *stats = param->stats;
+  struct timespec now, next, interval;
+  struct sched_param schedp;
 
+  stats->min = LONG_MAX;
+  interval.tv_sec = param->interval / 1000000;
+  interval.tv_nsec = (param->interval % 1000000) * 1000;
+
+  /* Set priority and policy */
+
+  schedp.sched_priority = param->prio;
+  if ((ret = sched_setscheduler(0, param->policy, &schedp)) < 0)
+    {
+      goto threadend;
+    }
+
+  clock_gettime(param->clock, &now);
+  next = now;
+  next.tv_sec += interval.tv_sec;
+  next.tv_nsec += interval.tv_nsec;
+  tsnorm(&next);
+
+  printf("Thread %d started\n", stats->id);
+
+  while (running)
+    {
+      switch (config.nanosleep)
+        {
+          case 0:
+            if ((ret = clock_nanosleep(param->clock, TIMER_ABSTIME, &next, NULL)) < 0)
+              {
+                goto threadend;
+              }
+            break;
+#ifdef CONFIG_SYSTEMTICK_HOOK
+          case 1:
+            if ((ret = sem_wait(&g_waitsem)) < 0)
+              {
+                goto threadend;
+              }
+            break;
+#endif
+          case 2:
+            break;
+          default:
+            break;
+        }
+
+
+      if ((ret = clock_gettime(param->clock, &now)))
+        {
+          goto threadend;
+        }
+
+      /* calculate the diff now - next */
+
+      diff = timediff(now, next);
+      
+      if (diff < stats->min)
+        {
+          stats->min = diff;
+        }
+      if (diff > stats->max)
+        {
+          stats->max = diff;
+        }
+      stats->avg += (double) diff;
+
+      if (config.histogram)
+        {
+          if (diff < config.histogram)
+            {
+              stats->hist_array[diff] += 1;
+            }
+          else
+            {
+              stats->hist_overflow += 1;
+            }
+        }  
+
+      next.tv_sec += interval.tv_sec;
+      next.tv_nsec += interval.tv_nsec;
+      tsnorm(&next);
+    }
+
+  return NULL;
+
+threadend:
   return NULL;
 }
 
@@ -247,13 +379,15 @@ static inline void init_thread_param(struct thread_param_s *param,
                                      unsigned long max_cycles,
                                      int policy,
                                      int prio,
-                                     struct thread_stats_s *stats)
+                                     struct thread_stats_s *stats,
+                                     int clock)
 {
   param->interval = interval;
   param->max_cycles = max_cycles;
   param->policy = policy;
   param->prio = prio;
   param->stats = stats;
+  param->clock = clock;
 }
 
 /****************************************************************************
@@ -263,7 +397,7 @@ static inline void init_thread_param(struct thread_param_s *param,
 int main(int argc, char *argv[])
 {
   int i;
-  bool running = true;
+  running = true;
   struct thread_param_s **params = NULL;
   struct thread_stats_s **stats = NULL;
 
@@ -275,6 +409,7 @@ int main(int argc, char *argv[])
   config.threads = 1;
   config.prio = 0;
   config.policy = SCHED_FIFO;
+  config.nanosleep = 0;
 
   if (!parse_args(argc, argv))
     {
@@ -288,13 +423,13 @@ int main(int argc, char *argv[])
       config.prio = config.threads;
     }
 
-  params = malloc(config.threads * sizeof(struct thread_param_s*));
+  params = calloc(config.threads, sizeof(struct thread_param_s*));
   if (params == NULL)
     {
       perror("params");
       goto main_error;
     }
-  stats  = malloc(config.threads * sizeof(struct thread_stats_s*));
+  stats  = calloc(config.threads, sizeof(struct thread_stats_s*));
   if (stats == NULL)
     {
       perror("stats");
@@ -321,10 +456,14 @@ int main(int argc, char *argv[])
           perror("hist_array");
           goto main_error;
         }
-      init_thread_param(params[i], config.interval, config.loops, config.policy, config.prio, stats[i]);
+      init_thread_param(params[i], config.interval, config.loops, config.policy, config.prio, stats[i], config.clock);
 
+      pthread_create(&stats[i]->id, NULL, testthread, &stats[i]);
       config.interval += config.distance;
-      config.prio--;
+      if (config.prio > 0)
+        {
+          config.prio--;
+        }
     }
 
   
@@ -336,6 +475,25 @@ int main(int argc, char *argv[])
   return OK;
 
 main_error:
+  if (stats != NULL)
+    {
+      for (i = 0; i < config.threads; ++i)
+        {
+          if (params[i] != NULL)
+            {
+              free(params[i]);
+            }
+          if (stats[i] != NULL)
+            {
+              if (stats[i]->hist_array != NULL)
+                {
+                  free(stats[i]->hist_array);
+                }
+              free(stats[i]);
+            }
+        }
+    }
+  free(stats);
 
-
+  return ERROR;
 }
