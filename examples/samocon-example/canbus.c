@@ -27,7 +27,7 @@ static void *canbus_producer(void *foo)
 #ifdef CONFIG_CAN_ERRORS
   txmsg.cm_hdr.ch_error = 0;
 #endif
-  txmsg.cm_hdr.ch_unused = 0;
+  // txmsg.cm_hdr.ch_unused = 0;
   while (true)
     {
       txmsg.cm_hdr.ch_id = id;

@@ -24,6 +24,9 @@ int rstest_example(void);
 /* canbus.c */
 int canbus_example(void);
 
+/* timerhook.c */
+int timerhook_example(void);
+
 /* rt_task.c */
 void *rt_task(void *p);
 void rt_task_endme(int n);

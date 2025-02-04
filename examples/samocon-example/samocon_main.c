@@ -85,6 +85,10 @@ int main(int argc, FAR char *argv[])
     {
       return i2c_eeprom_example();
     }
+  else if (strcmp(argv[1], "timerhook") == 0)
+    {
+      return timerhook_example();
+    }
   else if (strcmp(argv[1], "calibrate_adcs") == 0)
     {
       if (argc != 3) 
