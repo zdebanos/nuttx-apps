@@ -124,6 +124,7 @@ struct thread_stats_s
   double avg;
   unsigned long cycles;
   pthread_t id;
+  bool ended;
 };
 
 static bool running;
@@ -454,7 +455,7 @@ static void *testthread(void *arg)
   struct timer_status_s stamp1, stamp2;
   struct thread_param_s *param = (struct thread_param_s*)arg;
   struct thread_stats_s *stats = param->stats;
-  struct timespec now, next, interval;
+  struct timespec now, next, interval, endtime;
   struct sched_param schedp;
 
   stats->min = LONG_MAX;
@@ -480,7 +481,16 @@ static void *testthread(void *arg)
           goto threadend;
         }
     }
-  
+
+  /* We can use clock_gettime for the endtime. */
+
+  if ((ret = clock_gettime(param->clock, &now)) < 0)
+    {
+      goto threadend;
+    }
+
+  endtime.tv_sec = now.tv_sec + config.duration;
+  endtime.tv_nsec = now.tv_nsec;
 
   while (running)
     {
@@ -585,13 +595,25 @@ static void *testthread(void *arg)
               stats->hist_overflow += 1;
             }
         }  
-      if (++stats->cycles >= param->max_cycles)
+      if (param->max_cycles != 0 && ++stats->cycles >= param->max_cycles)
         {
-          break;  
+          stats->ended = true;
+          break;
+        }
+      if (config.duration != 0)
+        {
+          if ((ret = clock_gettime(param->clock, &now)) < 0)
+            {
+              goto threadend;
+            }
+          if (timediff_us(endtime, now) >= 0)
+            {
+              stats->ended = true;
+              break;
+            }
         }
     }
 
-  printf("thread end\n");
   return NULL;
 
 threadend:
@@ -611,6 +633,7 @@ static inline void init_thread_param(struct thread_param_s *param,
   stats->max = -LONG_MAX;
   stats->min = LONG_MAX;
   stats->hist_overflow = 0;
+  stats->ended = false;
 
   param->interval = interval;
   param->max_cycles = max_cycles;
@@ -857,12 +880,14 @@ int main(int argc, char *argv[])
   if (params == NULL)
     {
       perror("params");
+      ret = ERROR;
       goto main_error;
     }
   stats  = calloc(config.threads, sizeof(struct thread_stats_s*));
   if (stats == NULL)
     {
       perror("stats");
+      ret = ERROR;
       goto main_error;
     }
 
@@ -872,18 +897,21 @@ int main(int argc, char *argv[])
       if (params == NULL)
         {
           perror("params[i]");
+          ret = ERROR;
           goto main_error;
         }
       stats[i]  = malloc(sizeof(struct thread_stats_s));
       if (params == NULL)
         {
           perror("stats[i]");
+          ret = ERROR;
           goto main_error;
         }
       stats[i]->hist_array = calloc(config.histogram, sizeof(long));
       if (stats[i]->hist_array == NULL)
         {
           perror("hist_array");
+          ret = ERROR;
           goto main_error;
         }
       init_thread_param(params[i], config.interval, config.loops,
@@ -907,7 +935,7 @@ int main(int argc, char *argv[])
       int ended = 0;
       for (i = 0; i < config.threads; ++i)
         {
-          if (stats[i]->cycles >= params[i]->max_cycles)
+          if (stats[i]->ended)
             {
               ended += 1;
             }
@@ -940,28 +968,6 @@ int main(int argc, char *argv[])
       close(timerfd);
     }
 
-  if (stats != NULL)
-    {
-      for (i = 0; i < config.threads; ++i)
-        {
-          if (params[i] != NULL)
-            {
-              free(params[i]);
-            }
-          if (stats[i] != NULL)
-            {
-              if (stats[i]->hist_array != NULL)
-                {
-                  free(stats[i]->hist_array);
-                }
-              free(stats[i]);
-            }
-        }
-    }
-  free(stats);
-  
-  return ret;
-
 main_error:
   if (stats != NULL)
     {
@@ -982,7 +988,7 @@ main_error:
         }
     }
   free(stats);
-  return ERROR;
+  return ret;
 
 errtimer:
   close(timerfd);
