@@ -15,21 +15,21 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
  * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  * A NuttX port of the cyclictest rt-tests utility for Linux.
  * As of writing this piece of software (Feb 2025), clock_gettime
  * and clock_nanosleep are tightly tied to systemtick by default.
  * Yes, the time resolution can be achieved by using TICKLESS, but for high
  * resolution waiting and measurement we can use other methods.
- * 
+ *
  * This piece of software includes configurable waiting methods:
  *   - clock_nanosleep
  *   - systemtick hook: it is assumed your BSP supports a board_timerhook
- *       function where a sem_t g_waitsem is posted. 
+ *       function where a sem_t g_waitsem is posted.
  *     - WARNING: only one task (thread) can wait for the semaphore.
  *   - NuttX Timer API: waiting for the timer to expire.
  *     - WARNING: only one task (thread) can wait for the timer to expire.
- * 
+ *
  * Available time measuring methods:
  *  - clock_gettime
  *  - NuttX Timer API
@@ -159,29 +159,40 @@ static void print_help(void)
     "  -c --clock [CLOCK]: selects the clock: 0 selects CLOCK_REALTIME, "
     "1 selects CLOCK_MONOTONIC.\n"
     "     Applies only when -n=0 or -m=0.\n"
-    "  -d --distance [US]: The distance of thread intervals. Default is 500us.\n"
-    "  -D --duration [TIME]: Test duration length in seconds. Default is 0 (endless).\n"
-    "  -h --histogram [US]: Output the histogram data to stdout. US is the maximum"
-    "value to be printed.\n"
+    "  -d --distance [US]: The distance of thread intervals. "
+    "Default is 500us.\n"
+    "  -D --duration [TIME]: Test duration length in seconds. "
+    "Default is 0 (endless).\n"
+    "  -h --histogram [US]: Output the histogram data to stdout. "
+    "US is the maximum value to be printed.\n"
     "  -H --histofall: Same as -h except that an additional histogram column\n"
-    "     is displayed at the right that contains summary data of all thread histograms.\n"
-    "     If cyclictest runs a single thread only, the -H option is equivalent to -h.\n"
+    "     is displayed at the right that contains summary data of all thread "
+    "histograms.\n"
+    "     If cyclictest runs a single thread only, the -H option is "
+    "equivalent to -h.\n"
     "  -i --interval [US]: The thread interval. Default is 1000us.\n"
-    "  -l --loops [N]: The number of measurement loops. Default is 0 (endless).\n"
+    "  -l --loops [N]: The number of measurement loops. Default is 0 "
+    "(endless).\n"
     "  -m --measurement [METHOD]: Set the time measurement method:\n"
     "     0 selects clock_gettime, 1 uses the NuttX timer API.\n"
     "     WARNING:\n"
-    "       If METHOD 1 is selected, you need to specify a timer device (e.g. /dev/timer0) in -T.\n"
-    "  -n --nanosleep [METHOD]: Set the waiting method: 0 selects clock_nanosleep,\n"
-    "     1 waits for a semaphore (sem_t g_semwait) posted by a board_timerhook function,\n"
+    "       If METHOD 1 is selected, you need to specify a timer device "
+    "(e.g. /dev/timer0) in -T.\n"
+    "  -n --nanosleep [METHOD]: Set the waiting method: 0 selects "
+    "clock_nanosleep,\n"
+    "     1 waits for a semaphore (sem_t g_semwait) posted by a "
+    "board_timerhook function,\n"
     "     2 waits for the POLLIN flag on a timer device. Default is 0.\n"
     "     WARNING:\n"
     "       Choosing 1 or 2 works only with one thread, "
     "the -t value is therefore set to 1.\n"
-    "       The METHOD 1 only works when compiled with CONFIG_SYSTEMTICK_HOOK.\n"
-    "       If METHOD 2 is selected, you need to specify a timer device (e.g. /dev/timer0) in -T.\n"
+    "       The METHOD 1 only works when compiled with "
+    "CONFIG_SYSTEMTICK_HOOK.\n"
+    "       If METHOD 2 is selected, you need to specify a timer device "
+    "(e.g. /dev/timer0) in -T.\n"
     "  -p --prio: Set the priority of the first thread.\n"
-    "  -t --threads [N]: The number of test threads to be created. Default is 1.\n"
+    "  -t --threads [N]: The number of test threads to be created. "
+    "Default is 1.\n"
     "  -T --timer-device [DEV]: The measuring timer device.\n"
     "     Must be specified when -m=1 or -n=2.\n"
     "  -y --policy [NAME]: Set the scheduler policy, where NAME is \n"
@@ -198,7 +209,8 @@ static long arg_decimal(char *arg)
     {
       return -1;
     }
-  return ret; 
+
+  return ret;
 }
 
 static bool parse_args(int argc, char * const argv[])
@@ -206,164 +218,169 @@ static bool parse_args(int argc, char * const argv[])
   int longindex;
   int opt;
   long decimal;
-  while ((opt = getopt_long(argc, argv, "c:d:D:h:Hi:l:m:n:p:t:T:", optargs, &longindex)) != -1) {
-    switch (opt) {
-      case 'c':
-        decimal = arg_decimal(optarg);
-        if (decimal < 0)
-          {
+  while ((opt = getopt_long(argc, argv, "c:d:D:h:Hi:l:m:n:p:t:T:",
+                  optargs, &longindex)) != -1)
+    {
+      switch (opt)
+        {
+          case 'c':
+            decimal = arg_decimal(optarg);
+            if (decimal < 0)
+              {
+                return false;
+              }
+            else if (decimal == CLOCK_MONOTONIC || decimal == CLOCK_REALTIME)
+              {
+                config.clock = decimal;
+              }
+            break;
+          case 'd':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.distance = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'D':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.duration = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'h':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.histogram = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'H':
+            config.histofall = true;
+            break;
+          case 'i':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.interval = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'l':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.loops = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'm':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.meas_method = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'n':
+            decimal = arg_decimal(optarg);
+            if (decimal >= 0)
+              {
+                config.wait_method = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'p':
+            decimal = arg_decimal(optarg);
+            if (decimal > 0)
+              {
+                config.prio = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 't':
+            decimal = arg_decimal(optarg);
+            if (decimal > 0)
+              {
+                config.threads = decimal;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case 'T':
+            config.timer_dev = optarg;
+            break;
+          case 'y':
+            if (strcmp(optarg, "other") == 0)
+              {
+                config.policy = SCHED_OTHER;
+              }
+            else if (strcmp(optarg, "normal") == 0)
+              {
+                config.policy = SCHED_NORMAL;
+              }
+            else if (strcmp(optarg, "batch") == 0)
+              {
+                config.policy = SCHED_BATCH;
+              }
+            else if (strcmp(optarg, "idle") == 0)
+              {
+                config.policy = SCHED_IDLE;
+              }
+            else if (strcmp(optarg, "fifo") == 0)
+              {
+                config.policy = SCHED_FIFO;
+              }
+            else if (strcmp(optarg, "rr") == 0)
+              {
+                config.policy = SCHED_RR;
+              }
+            else
+              {
+                return false;
+              }
+            break;
+          case '?':
             return false;
-          }
-        else if (decimal == CLOCK_MONOTONIC || decimal == CLOCK_REALTIME)
-          {
-            config.clock = decimal;
-          }
-        break;
-      case 'd':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.distance = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'D':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.duration = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'h':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.histogram = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'H':
-        config.histofall = true;
-        break;
-      case 'i':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.interval = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'l':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.loops = decimal;
-          }  
-        else
-          {
-            return false;
-          }
-        break;
-      case 'm':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.meas_method = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'n':
-        decimal = arg_decimal(optarg);
-        if (decimal >= 0)
-          {
-            config.wait_method = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'p':
-        decimal = arg_decimal(optarg);
-        if (decimal > 0)
-          {
-            config.prio = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 't':
-        decimal = arg_decimal(optarg);
-        if (decimal > 0)
-          {
-            config.threads = decimal;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case 'T':
-        config.timer_dev = optarg;
-        break;
-      case 'y':
-        if (strcmp(optarg, "other") == 0)
-          {
-            config.policy = SCHED_OTHER;
-          }
-        else if (strcmp(optarg, "normal") == 0)
-          {
-            config.policy = SCHED_NORMAL;
-          }
-        else if (strcmp(optarg, "batch") == 0)
-          {
-            config.policy = SCHED_BATCH;
-          }
-        else if (strcmp(optarg, "idle") == 0)
-          {
-            config.policy = SCHED_IDLE;
-          }
-        else if (strcmp(optarg, "fifo") == 0)
-          {
-            config.policy = SCHED_FIFO;
-          }
-        else if (strcmp(optarg, "rr") == 0)
-          {
-            config.policy = SCHED_RR;
-          }
-        else
-          {
-            return false;
-          }
-        break;
-      case '?':
-        return false;
-      default:
-        break;
+          default:
+            break;
+        }
     }
-  }
+
   if (optind < argc)
     {
       return false;
     }
+
   return true;
 }
 
@@ -372,11 +389,12 @@ static bool check_args_logic(void)
   if (config.wait_method == W_SYSTICKHOOK)
     {
 #ifndef CONFIG_SYSTEMTICK_HOOK
-      fprintf(stderr, "NuttX is not compiled with CONFIG_SYSTEMTICK_HOOK!\n");
+      fprintf(stderr,
+              "NuttX is not compiled with CONFIG_SYSTEMTICK_HOOK!\n");
       return false;
 #endif
     }
-  
+
   /* Check if -T option was passed */
 
   if (config.wait_method == W_TIMERHOOK || config.meas_method == M_TIMER_API)
@@ -387,34 +405,38 @@ static bool check_args_logic(void)
           return false;
         }
     }
-  
+
   /* Works only with one thread */
-  
-  if (config.wait_method == W_SYSTICKHOOK || config.wait_method == W_TIMERHOOK)
+
+  if (config.wait_method == W_SYSTICKHOOK ||
+      config.wait_method == W_TIMERHOOK)
     {
       config.threads = 1;
     }
-  
+
   /* If the priority was not loaded, default to number of threads. */
 
   if (config.prio == 0)
     {
       config.prio = config.threads;
     }
+
   if (config.wait_method >= W_COUNT)
     {
-      return false;     
+      return false;
     }
+
   if (config.meas_method >= M_COUNT)
     {
       return false;
-    } 
-  return true;  
+    }
+
+  return true;
 }
 
 static inline void tsnorm(struct timespec *ts)
 {
-	while (ts->tv_nsec >= NSEC_PER_SEC)
+  while (ts->tv_nsec >= NSEC_PER_SEC)
     {
       ts->tv_nsec -= NSEC_PER_SEC;
       ts->tv_sec++;
@@ -440,11 +462,12 @@ static inline int64_t timediff_us_timer(struct timer_status_s after,
   if (t2 < t1)
     {
       ret = (int64_t) (t1 - t2);
-    } 
+    }
   else
     {
       ret = (int64_t) (after.timeout - (t2 - t1));
     }
+
   return ret;
 }
 
@@ -452,11 +475,15 @@ static void *testthread(void *arg)
 {
   int ret;
   int64_t diff = 0;
-  struct timer_status_s stamp1, stamp2;
-  struct thread_param_s *param = (struct thread_param_s*)arg;
-  struct thread_stats_s *stats = param->stats;
-  struct timespec now, next, interval, endtime;
+  struct timer_status_s stamp1;
+  struct timer_status_s stamp2;
+  struct timespec now;
+  struct timespec next;
+  struct timespec interval;
+  struct timespec endtime;
   struct sched_param schedp;
+  struct thread_param_s *param = (struct thread_param_s *)arg;
+  struct thread_stats_s *stats = param->stats;
 
   stats->min = LONG_MAX;
   interval.tv_sec = param->interval / 1000000;
@@ -465,11 +492,12 @@ static void *testthread(void *arg)
   /* Set priority and policy */
 
   schedp.sched_priority = param->prio;
-  if ((ret = pthread_setschedparam(pthread_self(), param->policy, &schedp)) < 0)
+  ret = pthread_setschedparam(pthread_self(), param->policy, &schedp);
+  if (ret < 0)
     {
       goto threadend;
     }
-  
+
   if (config.wait_method == W_TIMERHOOK)
     {
       /* Start the timer here (we know the thread is only one) */
@@ -494,7 +522,7 @@ static void *testthread(void *arg)
 
   while (running)
     {
-      /* Time Stamp 1 */ 
+      /* Time Stamp 1 */
 
       switch (config.meas_method)
         {
@@ -505,12 +533,14 @@ static void *testthread(void *arg)
               }
             break;
           case M_TIMER_API:
-            ret = ioctl(timerfd, TCIOC_GETSTATUS, (unsigned long)((uintptr_t)&stamp1));
+            ret = ioctl(timerfd, TCIOC_GETSTATUS,
+                        (unsigned long)((uintptr_t)&stamp1));
             if (ret < 0)
               {
                 perror("TCIOC_GETSTAUS");
                 goto threadend;
               }
+
             if (config.wait_method == W_TIMERHOOK)
               {
                 stamp1.timeleft = stamp1.timeout;
@@ -527,7 +557,8 @@ static void *testthread(void *arg)
             next.tv_sec += interval.tv_sec;
             next.tv_nsec += interval.tv_nsec;
             tsnorm(&next);
-            if ((ret = clock_nanosleep(param->clock, TIMER_ABSTIME, &next, NULL)) < 0)
+            ret = clock_nanosleep(param->clock, TIMER_ABSTIME, &next, NULL);
+            if (ret < 0)
               {
                 goto threadend;
               }
@@ -559,15 +590,18 @@ static void *testthread(void *arg)
               {
                 goto threadend;
               }
+
             diff = timediff_us(now, next);
             break;
           case M_TIMER_API:
-            ret = ioctl(timerfd, TCIOC_GETSTATUS, (unsigned long)((uintptr_t)&stamp2));
+            ret = ioctl(timerfd, TCIOC_GETSTATUS,
+                        (unsigned long)((uintptr_t)&stamp2));
             if (ret < 0)
               {
                 perror("TCIOC_GETSTAUS");
                 goto threadend;
               }
+
             diff = timediff_us_timer(stamp2, stamp1);
             break;
           default:
@@ -578,10 +612,12 @@ static void *testthread(void *arg)
         {
           stats->min = diff;
         }
+
       if (diff > stats->max)
         {
           stats->max = diff;
         }
+
       stats->avg += (double) diff;
 
       if (config.histogram)
@@ -594,18 +630,21 @@ static void *testthread(void *arg)
             {
               stats->hist_overflow += 1;
             }
-        }  
+        }
+
       if (param->max_cycles != 0 && ++stats->cycles >= param->max_cycles)
         {
           stats->ended = true;
           break;
         }
+
       if (config.duration != 0)
         {
           if ((ret = clock_gettime(param->clock, &now)) < 0)
             {
               goto threadend;
             }
+
           if (timediff_us(endtime, now) >= 0)
             {
               stats->ended = true;
@@ -620,7 +659,7 @@ threadend:
   return NULL;
 }
 
-static inline void init_thread_param(struct thread_param_s *param, 
+static inline void init_thread_param(struct thread_param_s *param,
                                      unsigned long interval,
                                      unsigned long max_cycles,
                                      int policy,
@@ -643,17 +682,18 @@ static inline void init_thread_param(struct thread_param_s *param,
   param->clock = clock;
 }
 
-
 static void print_hist(struct thread_param_s *par[], int nthreads)
 {
-	int i, j;
-	unsigned long long int log_entries[nthreads+1];
-	unsigned long maxmax, alloverflows;
+  int i;
+  int j;
+  unsigned long long int log_entries[nthreads + 1];
+  unsigned long maxmax;
+  unsigned long alloverflows;
 
-	bzero(log_entries, sizeof(log_entries));
+  bzero(log_entries, sizeof(log_entries));
 
-	printf("# Histogram\n");
-	for (i = 0; i < config.histogram; i++)
+  printf("# Histogram\n");
+  for (i = 0; i < config.histogram; i++)
     {
       unsigned long long int allthreads = 0;
 
@@ -667,47 +707,54 @@ static void print_hist(struct thread_param_s *par[], int nthreads)
             {
               printf("\t");
             }
+
           log_entries[j] += curr_latency;
           allthreads += curr_latency;
         }
+
       if (config.histofall && nthreads > 1)
         {
           printf("\t%06llu", allthreads);
           log_entries[nthreads] += allthreads;
         }
+
       printf("\n");
     }
 
-	printf("# Total:");
+  printf("# Total:");
 
-	for (j = 0; j < nthreads; j++)
+  for (j = 0; j < nthreads; j++)
     {
       printf(" %09llu", log_entries[j]);
     }
-	if (config.histofall && nthreads > 1)
+
+  if (config.histofall && nthreads > 1)
     {
       printf(" %09llu", log_entries[nthreads]);
     }
-	printf("\n");
-	printf("# Min Latencies:");
 
-	for (j = 0; j < nthreads; j++)
+  printf("\n");
+  printf("# Min Latencies:");
+
+  for (j = 0; j < nthreads; j++)
     {
       printf(" %05lu", par[j]->stats->min);
     }
-	printf("\n");
-	printf("# Avg Latencies:");
 
-	for (j = 0; j < nthreads; j++)
+  printf("\n");
+  printf("# Avg Latencies:");
+
+  for (j = 0; j < nthreads; j++)
     {
       printf(" %05lu", par[j]->stats->cycles ?
-             (long)(par[j]->stats->avg/par[j]->stats->cycles) : 0);
+             (long)(par[j]->stats->avg / par[j]->stats->cycles) : 0);
     }
-	printf("\n");
-	printf("# Max Latencies:");
 
-	maxmax = 0;
-	for (j = 0; j < nthreads; j++)
+  printf("\n");
+  printf("# Max Latencies:");
+
+  maxmax = 0;
+  for (j = 0; j < nthreads; j++)
     {
       printf(" %05lu", par[j]->stats->max);
       if (par[j]->stats->max > maxmax)
@@ -716,24 +763,27 @@ static void print_hist(struct thread_param_s *par[], int nthreads)
         }
     }
 
-	if (config.histofall && nthreads > 1)
+  if (config.histofall && nthreads > 1)
     {
       printf(" %05lu", maxmax);
     }
-	printf("\n");
-	printf("# Histogram Overflows:");
 
-	alloverflows = 0;
-	for (j = 0; j < nthreads; j++)
+  printf("\n");
+  printf("# Histogram Overflows:");
+
+  alloverflows = 0;
+  for (j = 0; j < nthreads; j++)
     {
       printf(" %05lu", par[j]->stats->hist_overflow);
       alloverflows += par[j]->stats->hist_overflow;
-	}
-	if (config.histofall && nthreads > 1)
+    }
+
+  if (config.histofall && nthreads > 1)
     {
       printf(" %05lu", alloverflows);
     }
-	printf("\n");
+
+  printf("\n");
 }
 
 /****************************************************************************
@@ -771,7 +821,7 @@ int main(int argc, char *argv[])
       print_help();
       return ERROR;
     }
-  
+
   if (!check_args_logic())
     {
       print_help();
@@ -788,24 +838,25 @@ int main(int argc, char *argv[])
           perror("Failed to open the device timer");
           return ERROR;
         }
+
       /* Configure the timer notification */
 
       polltimer[0].fd     = timerfd;
       polltimer[0].events = POLLIN;
-      
+
       /* Fill in the notify struct
        * We do not want any signalling. But we must configure it,
        * because without the timer will not start.
        */
 
       memset(&event, 0, sizeof(event));
-      event.sigev_notify = SIGEV_NONE; 
+      event.sigev_notify = SIGEV_NONE;
 
       tnotify.periodic = true;
-      tnotify.pid      = getpid(); 
+      tnotify.pid      = getpid();
       tnotify.event    = event;
-      
-      /* Now set timeout of the timer. 
+
+      /* Now set timeout of the timer.
        * This depends on several factors.
        *
        * If wait_method == W_TIMERHOOK, the timeout is set to config.interval
@@ -813,18 +864,18 @@ int main(int argc, char *argv[])
        * NANOSLEEP or the timer itself. If the timer is used, the timer
        * zeroes itself when the timeout is reached, so we just get
        * the timer value after poll has stopped blocking.
-       * 
+       *
        * If wait_method != W_TIMERHOOK, we must set the timeout to at least
        * the double of the maximum of all thread intervals
        * (if you're not sure, please consult Claude Shannon).
-       * 
+       *
        * This raises the question: what if wait_method == W_TIMERHOOK
        * and meas_method == W_TIMER_API and the thread wakes up later
        * then the timer's timeout? The solution is to have a different
        * timer which runs slower and can measure overruns.
-       * But this is not yet implemented, just assume 
+       * But this would overcomplicate things.
        */
-      
+
       if (config.wait_method == W_TIMERHOOK)
         {
           reqtimeout_timer = config.interval;
@@ -833,33 +884,40 @@ int main(int argc, char *argv[])
         {
           /* Multiply by 3 instead of 2, just to be sure */
 
-          reqtimeout_timer = 3 * (config.interval + 
+          reqtimeout_timer = 3 * (config.interval +
                              (config.threads - 1) * config.distance);
         }
-      ret = ioctl(timerfd, TCIOC_MAXTIMEOUT, (unsigned long)((uintptr_t)&maxtimeout_timer));
+
+      ret = ioctl(timerfd, TCIOC_MAXTIMEOUT,
+                  (unsigned long)((uintptr_t)&maxtimeout_timer));
       if (ret < 0)
         {
           perror("TCIOC_MAXTIMEOUT");
           goto errtimer;
         }
+
       if (reqtimeout_timer > maxtimeout_timer)
         {
           fprintf(stderr, "The timer cannot measure such periods!\n");
           goto errtimer;
         }
-      ret = ioctl(timerfd, TCIOC_SETTIMEOUT, (unsigned long)reqtimeout_timer);
+
+      ret = ioctl(timerfd, TCIOC_SETTIMEOUT,
+                  (unsigned long)reqtimeout_timer);
       if (ret < 0)
         {
           perror("TCIOC_SETTIMEOUT");
           goto errtimer;
         }
-      ret = ioctl(timerfd, TCIOC_NOTIFICATION, (unsigned long)((uintptr_t)&tnotify));
+
+      ret = ioctl(timerfd, TCIOC_NOTIFICATION,
+                  (unsigned long)((uintptr_t)&tnotify));
       if (ret < 0)
         {
           perror("TCIOC_NOTIFICATION");
           goto errtimer;
         }
-      
+
       /*  If the timer is used only for measurement, start it here, otherwise
        *  start it only in one thread.
        */
@@ -871,19 +929,19 @@ int main(int argc, char *argv[])
             {
               perror("TCIOC_START");
               goto errtimer;
-            } 
+            }
         }
     }
-  
 
-  params = calloc(config.threads, sizeof(struct thread_param_s*));
+  params = calloc(config.threads, sizeof(struct thread_param_s *));
   if (params == NULL)
     {
       perror("params");
       ret = ERROR;
       goto main_error;
     }
-  stats  = calloc(config.threads, sizeof(struct thread_stats_s*));
+
+  stats  = calloc(config.threads, sizeof(struct thread_stats_s *));
   if (stats == NULL)
     {
       perror("stats");
@@ -900,6 +958,7 @@ int main(int argc, char *argv[])
           ret = ERROR;
           goto main_error;
         }
+
       stats[i]  = malloc(sizeof(struct thread_stats_s));
       if (params == NULL)
         {
@@ -907,6 +966,7 @@ int main(int argc, char *argv[])
           ret = ERROR;
           goto main_error;
         }
+
       stats[i]->hist_array = calloc(config.histogram, sizeof(long));
       if (stats[i]->hist_array == NULL)
         {
@@ -914,6 +974,7 @@ int main(int argc, char *argv[])
           ret = ERROR;
           goto main_error;
         }
+
       init_thread_param(params[i], config.interval, config.loops,
                  config.policy, config.prio, stats[i], config.clock);
 
@@ -925,13 +986,11 @@ int main(int argc, char *argv[])
         }
     }
 
-  
   while (running)
     {
       /* Periodically update the output */
 
-      usleep(100*1000);
-      
+      usleep(100 * 1000);
       int ended = 0;
       for (i = 0; i < config.threads; ++i)
         {
@@ -940,12 +999,13 @@ int main(int argc, char *argv[])
               ended += 1;
             }
         }
+
       if (ended == config.threads)
         {
           running = false;
         }
     }
-  
+
   for (i = 0; i < config.threads; ++i)
     {
       pthread_join(stats[i]->id, NULL);
@@ -965,6 +1025,7 @@ int main(int argc, char *argv[])
           perror("TCIOC_STOP");
           ret = ERROR;
         }
+
       close(timerfd);
     }
 
@@ -977,16 +1038,19 @@ main_error:
             {
               free(params[i]);
             }
+
           if (stats[i] != NULL)
             {
               if (stats[i]->hist_array != NULL)
                 {
                   free(stats[i]->hist_array);
                 }
+
               free(stats[i]);
             }
         }
     }
+
   free(stats);
   return ret;
 
