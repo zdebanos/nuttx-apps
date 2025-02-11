@@ -137,14 +137,17 @@ static const struct option optargs[] =
   {"clock", optional_argument, 0, 'c'},
   {"distance", optional_argument, 0, 'd'},
   {"duration", optional_argument, 0, 'D'},
+  {"help", optional_argument, 0, 'e'},
   {"histogram", optional_argument, 0, 'h'},
   {"histofall", optional_argument, 0, 'H'},
   {"interval", optional_argument, 0, 'i'},
   {"loops", optional_argument, 0, 'l'},
+  {"measurement", optional_argument, 0, 'm'},
+  {"nanosleep", optional_argument, 0, 'n'},
+  {"prio", optional_argument, 0, 'p'},
   {"threads", optional_argument, 0, 't'},
   {"timer-device", optional_argument, 0, 'T'},
   {"policy", optional_argument, 0, 'y'},
-  {"wait-method", optional_argument, 0, 'w'}
 };
 
 /****************************************************************************
@@ -163,11 +166,13 @@ static void print_help(void)
     "Default is 500us.\n"
     "  -D --duration [TIME]: Test duration length in seconds. "
     "Default is 0 (endless).\n"
+    "  -e --help: Display this help and quit.\n"
     "  -h --histogram [US]: Output the histogram data to stdout. "
     "US is the maximum value to be printed.\n"
-    "  -H --histofall: Same as -h except that an additional histogram column\n"
-    "     is displayed at the right that contains summary data of all thread "
-    "histograms.\n"
+    "  -H --histofall: Same as -h except that an additional histogram "
+    "column\n"
+    "     is displayed at the right that contains summary data of all thread"
+    " histograms.\n"
     "     If cyclictest runs a single thread only, the -H option is "
     "equivalent to -h.\n"
     "  -i --interval [US]: The thread interval. Default is 1000us.\n"
@@ -256,6 +261,8 @@ static bool parse_args(int argc, char * const argv[])
                 return false;
               }
             break;
+          case 'e':
+            return true;
           case 'h':
             decimal = arg_decimal(optarg);
             if (decimal >= 0)
@@ -447,7 +454,7 @@ static inline int64_t timediff_us(struct timespec t1, struct timespec t2)
 {
   int64_t ret;
   ret = 1000000 * (int64_t) ((int) t1.tv_sec - (int) t2.tv_sec);
-  ret += (int64_t) ((int) t1.tv_nsec - (int) t2.tv_nsec);
+  ret += (int64_t) ((int) t1.tv_nsec - (int) t2.tv_nsec) / 1000;
   return ret;
 }
 
@@ -645,15 +652,13 @@ static void *testthread(void *arg)
               goto threadend;
             }
 
-          if (timediff_us(endtime, now) >= 0)
+          if (timediff_us(now, endtime) >= 0)
             {
               stats->ended = true;
               break;
             }
         }
     }
-
-  return NULL;
 
 threadend:
   return NULL;
