@@ -686,6 +686,8 @@ static inline void init_thread_param(struct thread_param_s *param,
   param->clock = clock;
 }
 
+/* Copied from the official cyclictest itself */
+
 static void print_hist(struct thread_param_s *par[], int nthreads)
 {
   int i;
