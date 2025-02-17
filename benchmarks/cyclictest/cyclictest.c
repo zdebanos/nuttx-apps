@@ -161,7 +161,6 @@ static void print_help(void)
     "Usage:\n"
     "  -c --clock [CLOCK]: selects the clock: 0 selects CLOCK_REALTIME, "
     "1 selects CLOCK_MONOTONIC.\n"
-    "     Applies only when -n=0 or -m=0.\n"
     "  -d --distance [US]: The distance of thread intervals. "
     "Default is 500us.\n"
     "  -D --duration [TIME]: Test duration length in seconds. "
