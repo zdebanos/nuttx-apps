@@ -322,7 +322,7 @@ static bool parse_args(int argc, char * const argv[])
             break;
           case 'p':
             decimal = arg_decimal(optarg);
-            if (decimal > 0)
+            if (decimal >= 0 && decimal <= 255)
               {
                 config.prio = decimal;
               }
