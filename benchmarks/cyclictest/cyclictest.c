@@ -35,6 +35,7 @@
  *  - NuttX Timer API
  *
  * Authors of the NuttX port: Stepan Pressl <pressl.stepan@gmail.com>
+ *                                          <pressste@fel.cvut.cz>
  *
  ****************************************************************************/
 
@@ -189,7 +190,7 @@ static void print_help(void)
     "  -t --threads [N]: The number of test threads to be created. "
     "Default is 1.\n"
     "  -T --timer-device [DEV]: The measuring timer device.\n"
-    "     Must be specified when -m=1 or -n=2.\n"
+    "     Must be specified when -m=1 or -n=1.\n"
     "  -y --policy [NAME]: Set the scheduler policy, where NAME is \n"
     "     fifo, rr, batch, idle, normal, other.\n"
   );
@@ -647,7 +648,8 @@ static void *testthread(void *arg)
             }
         }
 
-      if (param->max_cycles != 0 && ++stats->cycles >= param->max_cycles)
+      ++stats->cycles;
+      if (param->max_cycles != 0 && stats->cycles >= param->max_cycles)
         {
           stats->ended = true;
           break;
@@ -695,7 +697,9 @@ static inline void init_thread_param(struct thread_param_s *param,
   param->clock = clock;
 }
 
-/* Copied from the official cyclictest itself */
+/* Copied from the original rt-tests/cyclictest.
+ * This way, the output is compatible with the original cyclictest.
+ */
 
 static void print_hist(struct thread_param_s *par[], int nthreads)
 {
