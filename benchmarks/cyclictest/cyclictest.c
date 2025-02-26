@@ -69,10 +69,6 @@
  * Private Types
  ****************************************************************************/
 
-#ifdef CONFIG_SYSTEMTICK_HOOK
-extern sem_t g_waitsem;
-#endif
-
 enum meas_method_e
 {
   M_GETTIME = 0,
@@ -83,8 +79,7 @@ enum meas_method_e
 enum wait_method_e
 {
   W_NANOSLEEP = 0,
-  W_SYSTICKHOOK,
-  W_TIMERHOOK,
+  W_DEVTIMER,
   W_COUNT
 };
 
@@ -160,7 +155,7 @@ static void print_help(void)
     "The Cyclictest Benchmark Utility\n"
     "Usage:\n"
     "  -c --clock [CLOCK]: selects the clock: 0 selects CLOCK_REALTIME, "
-    "1 selects CLOCK_MONOTONIC.\n"
+    "1 selects CLOCK_MONOTONIC (default).\n"
     "  -d --distance [US]: The distance of thread intervals. "
     "Default is 500us.\n"
     "  -D --duration [TIME]: Test duration length in seconds. "
@@ -184,15 +179,11 @@ static void print_help(void)
     "(e.g. /dev/timer0) in -T.\n"
     "  -n --nanosleep [METHOD]: Set the waiting method: 0 selects "
     "clock_nanosleep,\n"
-    "     1 waits for a semaphore (sem_t g_semwait) posted by a "
-    "board_timerhook function,\n"
-    "     2 waits for the POLLIN flag on a timer device. Default is 0.\n"
+    "     1 waits for the POLLIN flag on a timer device. Default is 0.\n"
     "     WARNING:\n"
-    "       Choosing 1 or 2 works only with one thread, "
+    "       Choosing 1 works only with one thread, "
     "the -t value is therefore set to 1.\n"
-    "       The METHOD 1 only works when compiled with "
-    "CONFIG_SYSTEMTICK_HOOK.\n"
-    "       If METHOD 2 is selected, you need to specify a timer device "
+    "       If METHOD 1 is selected, you need to specify a timer device "
     "(e.g. /dev/timer0) in -T.\n"
     "  -p --prio: Set the priority of the first thread.\n"
     "  -t --threads [N]: The number of test threads to be created. "
@@ -392,18 +383,9 @@ static bool parse_args(int argc, char * const argv[])
 
 static bool check_args_logic(void)
 {
-  if (config.wait_method == W_SYSTICKHOOK)
-    {
-#ifndef CONFIG_SYSTEMTICK_HOOK
-      fprintf(stderr,
-              "NuttX is not compiled with CONFIG_SYSTEMTICK_HOOK!\n");
-      return false;
-#endif
-    }
-
   /* Check if -T option was passed */
 
-  if (config.wait_method == W_TIMERHOOK || config.meas_method == M_TIMER_API)
+  if (config.wait_method == W_DEVTIMER || config.meas_method == M_TIMER_API)
     {
       if (config.timer_dev == NULL)
         {
@@ -414,8 +396,7 @@ static bool check_args_logic(void)
 
   /* Works only with one thread */
 
-  if (config.wait_method == W_SYSTICKHOOK ||
-      config.wait_method == W_TIMERHOOK)
+  if (config.wait_method == W_DEVTIMER)
     {
       config.threads = 1;
     }
@@ -477,9 +458,15 @@ static inline int64_t timediff_us_timer(struct timer_status_s after,
   return ret;
 }
 
+static inline int timerdev_getstatus(struct timer_status_s *st)
+{
+  return ioctl(timerfd, TCIOC_GETSTATUS, (unsigned long)((uintptr_t)st));
+}
+
 static void *testthread(void *arg)
 {
   int ret;
+  int32_t newint;
   int64_t diff = 0;
   struct timer_status_s stamp1;
   struct timer_status_s stamp2;
@@ -504,7 +491,7 @@ static void *testthread(void *arg)
       goto threadend;
     }
 
-  if (config.wait_method == W_TIMERHOOK)
+  if (config.wait_method == W_DEVTIMER)
     {
       /* Start the timer here (we know the thread is only one) */
 
@@ -528,37 +515,34 @@ static void *testthread(void *arg)
 
   while (running)
     {
-      /* Time Stamp 1 */
+      /* This inicializes the stamp1.timeout field */
 
-      switch (config.meas_method)
+      if (config.meas_method == M_TIMER_API)
         {
-          case M_GETTIME:
-            if ((ret = clock_gettime(param->clock, &now)) < 0)
-              {
-                goto threadend;
-              }
-            break;
-          case M_TIMER_API:
-            ret = ioctl(timerfd, TCIOC_GETSTATUS,
-                        (unsigned long)((uintptr_t)&stamp1));
-            if (ret < 0)
-              {
-                perror("TCIOC_GETSTAUS");
-                goto threadend;
-              }
-
-            if (config.wait_method == W_TIMERHOOK)
-              {
-                stamp1.timeleft = stamp1.timeout;
-              }
-            break;
-          default:
-            break;
+          ret = timerdev_getstatus(&stamp1);
+          if (ret < 0)
+            {
+              perror("TCIOC_GETSTAUS");
+              goto threadend;
+            }
         }
 
       switch (config.wait_method)
         {
           case W_NANOSLEEP:
+            if (config.meas_method == M_TIMER_API)
+              {
+                /* If we measure using the TIMER_API, compute
+                 * the expected timestamp when the thread should wake up.
+                 */
+
+                newint = stamp1.timeleft - param->interval;
+                if (newint < 0)
+                  {
+                    stamp1.timeleft = stamp1.timeout + newint;
+                  }
+              }
+
             next = now;
             next.tv_sec += interval.tv_sec;
             next.tv_nsec += interval.tv_nsec;
@@ -569,15 +553,41 @@ static void *testthread(void *arg)
                 goto threadend;
               }
             break;
-#ifdef CONFIG_SYSTEMTICK_HOOK
-          case W_SYSTICKHOOK:
-            if ((ret = sem_wait(&g_waitsem)) < 0)
+          case W_DEVTIMER:
+            if (config.meas_method == M_TIMER_API)
               {
-                goto threadend;
+                /* We suppose the timer resets itself when it
+                 * overflows. So the first timestamp is timeout.
+                 */
+
+                stamp1.timeleft = stamp1.timeout;
               }
-            break;
-#endif
-          case W_TIMERHOOK:
+            else if (config.meas_method == M_GETTIME)
+              {
+                /* If we measure using the POSIX API, we must get the
+                 * microseconds in which the currently running timer
+                 * is supposed to timeout. We then convert this
+                 * to the timespec struct, indicating the start.
+                 */
+
+                ret = timerdev_getstatus(&stamp1);
+                if (ret < 0)
+                  {
+                    perror("TCIOC_GETSTATUS");
+                    goto threadend;
+                  }
+
+                ret = clock_gettime(param->clock, &next);
+                if (ret < 0)
+                  {
+                    goto threadend;
+                  }
+
+                next.tv_sec += (stamp1.timeleft) / 1000000;
+                next.tv_nsec += (stamp1.timeleft % 1000000) * 1000;
+                tsnorm(&next);
+              }
+
             if ((ret = poll(polltimer, 1, -1)) < 0)
               {
                 goto threadend;
@@ -600,8 +610,7 @@ static void *testthread(void *arg)
             diff = timediff_us(now, next);
             break;
           case M_TIMER_API:
-            ret = ioctl(timerfd, TCIOC_GETSTATUS,
-                        (unsigned long)((uintptr_t)&stamp2));
+            ret = timerdev_getstatus(&stamp2);
             if (ret < 0)
               {
                 perror("TCIOC_GETSTAUS");
@@ -836,7 +845,7 @@ int main(int argc, char *argv[])
 
   /* Timer must be configured */
 
-  if (config.wait_method == W_TIMERHOOK || config.meas_method == M_TIMER_API)
+  if (config.wait_method == W_DEVTIMER || config.meas_method == M_TIMER_API)
     {
       timerfd = open(config.timer_dev, O_RDWR);
       if (timerfd < 0)
@@ -865,33 +874,37 @@ int main(int argc, char *argv[])
       /* Now set timeout of the timer.
        * This depends on several factors.
        *
-       * If wait_method == W_TIMERHOOK, the timeout is set to config.interval
+       * If wait_method == W_DEVTIMER, the timeout is set to config.interval
        * (to achieve periodic operation). The extra time is measured by
        * NANOSLEEP or the timer itself. If the timer is used, the timer
        * zeroes itself when the timeout is reached, so we just get
        * the timer value after poll has stopped blocking.
        *
-       * If wait_method != W_TIMERHOOK, we must set the timeout to at least
+       * If wait_method != W_DEVTIMER, we must set the timeout to at least
        * the double of the maximum of all thread intervals
        * (if you're not sure, please consult Claude Shannon).
        *
-       * This raises the question: what if wait_method == W_TIMERHOOK
+       * This raises the question: what if wait_method == W_DEVTIMER
        * and meas_method == W_TIMER_API and the thread wakes up later
        * then the timer's timeout? The solution is to have a different
        * timer which runs slower and can measure overruns.
        * But this would overcomplicate things.
        */
 
-      if (config.wait_method == W_TIMERHOOK)
+      if (config.wait_method == W_DEVTIMER)
         {
           reqtimeout_timer = config.interval;
         }
-      else
+      else if (config.wait_method == W_NANOSLEEP)
         {
           /* Multiply by 3 instead of 2, just to be sure */
 
           reqtimeout_timer = 3 * (config.interval +
                              (config.threads - 1) * config.distance);
+        }
+      else
+        {
+          reqtimeout_timer = 2 * CONFIG_USEC_PER_TICK;
         }
 
       ret = ioctl(timerfd, TCIOC_MAXTIMEOUT,
@@ -928,7 +941,7 @@ int main(int argc, char *argv[])
        *  start it only in one thread.
        */
 
-      if (config.wait_method != W_TIMERHOOK)
+      if (config.wait_method != W_DEVTIMER)
         {
           ret = ioctl(timerfd, TCIOC_START);
           if (ret < 0)
@@ -1023,7 +1036,7 @@ int main(int argc, char *argv[])
     }
 
   ret = OK;
-  if (config.wait_method == W_TIMERHOOK || config.meas_method == M_TIMER_API)
+  if (config.wait_method == W_DEVTIMER || config.meas_method == M_TIMER_API)
     {
       ret = ioctl(timerfd, TCIOC_STOP);
       if (ret < 0)
