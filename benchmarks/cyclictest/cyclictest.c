@@ -891,7 +891,7 @@ int main(int argc, char *argv[])
 
       /* Fill in the notify struct
        * We do not want any signalling. But we must configure it,
-       * because without the timer will not start.
+       * because without it the timer will not start.
        */
 
       memset(&event, 0, sizeof(event));
@@ -931,10 +931,6 @@ int main(int argc, char *argv[])
 
           reqtimeout_timer = 3 * (config.interval +
                              (config.threads - 1) * config.distance);
-        }
-      else
-        {
-          reqtimeout_timer = 2 * CONFIG_USEC_PER_TICK;
         }
 
       ret = ioctl(timerfd, TCIOC_MAXTIMEOUT,
@@ -1054,14 +1050,13 @@ int main(int argc, char *argv[])
             }
         }
 
-      if (!config.quiet)
-        {
-          printf("\x1B[%dA", config.threads);
-        }
-
       if (ended == config.threads)
         {
           running = false;
+        }
+      else if (!config.quiet)
+        {
+          printf("\x1B[%dA", config.threads);
         }
     }
 
