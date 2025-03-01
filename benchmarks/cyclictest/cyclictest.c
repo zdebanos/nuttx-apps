@@ -823,7 +823,7 @@ static void print_stat(struct thread_param_s *par, int index)
 {
   struct thread_stats_s *stat = par->stats;
   char *fmt;
-  fmt = "T:%2d (%5d) P:%2d I:%ld C:%7lu"
+  fmt = "T:%2d (%5d) P:%2d I:%ld C:%7lu "
         "Min:%7ld Act:%5ld Avg:%5ld Max:%8ld\n";
   printf(fmt, index, stat->tid, par->prio, par->interval, stat->cycles,
          stat->min, stat->act,
