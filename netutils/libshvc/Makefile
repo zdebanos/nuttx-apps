@@ -34,15 +34,15 @@ $(SHVDIR):
 # so this quick sed hack won't compile the test binaries.
 compile-libshv: $(SHVDIR)
 	( cd $(SHVDIR) && git switch dev-zdebanos && \
-	  git submodule update --recursive --init && \
-	  sed -i '1s/^/#/' ./submodule/ulut/Makefile.omk )
+	  git submodule update --recursive --init )
 	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
 		CC="$(CC)" \
 		CXX="$(CXX)" \
 		CFLAGS="$(CFLAGS)" \
 		CXXFLAGS="$(CXXFLAGS)" \
 		LD="$(LD)" \
-	    LDFLAGS="$(LDFLAGS)"
+	    LDFLAGS="$(LDFLAGS)" \
+	    CONFIG_OC_ULUT_TESTS=n
 
 context:: compile-libshv
 
