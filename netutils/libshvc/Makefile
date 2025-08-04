@@ -22,7 +22,8 @@
 
 include $(APPDIR)/Make.defs
 
-.NOTPARALLEL: 
+# Set this to 1 for development purposes
+COMPILE_EVERYTIME = 0
 
 SHVDIR = shv-libs4c
 
@@ -30,27 +31,28 @@ $(SHVDIR):
 	git clone https://github.com/silicon-heaven/shv-libs4c $(SHVDIR)
 	
 # Compile the library. Also pass all the NuttX Makefile variables.
-# I've stumbled upon serious problems with creating the ULUT test binaries
-# so this quick sed hack won't compile the test binaries.
+# But only in case of a newer library, non-existing _compiled directory
+# or MY_DEBUG set
 compile-libshv: $(SHVDIR)
-	( cd $(SHVDIR) && git switch dev-zdebanos && \
-	  git submodule update --recursive --init )
-	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
-		CC="$(CC)" \
-		CXX="$(CXX)" \
-		CFLAGS="$(CFLAGS)" \
-		CXXFLAGS="$(CXXFLAGS)" \
-		LD="$(LD)" \
-	    LDFLAGS="$(LDFLAGS)" \
-	    CONFIG_OC_ULUT_TESTS=n
+	$(Q) ( cd $(SHVDIR) && git fetch origin dev-zdebanos ) > /dev/null 2>&1
+	$(Q) if [ $(COMPILE_EVERYTIME) -eq 1 ] || \
+	        [ "$$(cd $(SHVDIR) && git rev-parse HEAD)" != "$$(cd $(SHVDIR) && git rev-parse origin/dev-zdebanos)" ] || \
+			[ ! -d "./$(SHVDIR)/_compiled" ]; then \
+		( cd $(SHVDIR) && git switch dev-zdebanos && git submodule update --recursive --init ) > /dev/null 2>&1; \
+		make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
+			CC="$(CC)" \
+			CXX="$(CXX)" \
+			CFLAGS="$(CFLAGS)" \
+			CXXFLAGS="$(CXXFLAGS)" \
+			LD="$(LD)" \
+			LDFLAGS="$(LDFLAGS)" \
+			CONFIG_OC_ULUT_TESTS=n; \
+	fi
 
 context:: compile-libshv
 
 depend:: compile-libshv
 	
-clean::
-	$(call DELDIR, $(SHVDIR))
-
 distclean::
 	make -C $(SHVDIR) distclean
 	$(call DELDIR, $(SHVDIR))
