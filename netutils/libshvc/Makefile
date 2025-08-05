@@ -34,7 +34,7 @@ $(SHVDIR):
 # But only in case of a newer library, non-existing _compiled directory
 # or MY_DEBUG set
 compile-libshv: $(SHVDIR)
-	$(Q) ( cd $(SHVDIR) && git fetch origin dev-zdebanos ) > /dev/null 2>&1
+	- $(Q) ( cd $(SHVDIR) && git fetch origin dev-zdebanos ) > /dev/null 2>&1
 	$(Q) if [ $(COMPILE_EVERYTIME) -eq 1 ] || \
 	        [ "$$(cd $(SHVDIR) && git rev-parse HEAD)" != "$$(cd $(SHVDIR) && git rev-parse origin/dev-zdebanos)" ] || \
 			[ ! -d "./$(SHVDIR)/_compiled" ]; then \
