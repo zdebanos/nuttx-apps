@@ -197,6 +197,12 @@ preconfig: Kconfig
 export:
 ifneq ($(EXPORTDIR),)
 	$(Q) mkdir -p "${EXPORTDIR}"$(DELIM)registry || exit 1;
+	for d in ${EXTRA_APPS_INCPATHS}; do \
+		if [ -d "$${d}" ]; then \
+			echo "CP: $${d}" ; \
+			cp -r "$${d}" "${EXPORTDIR}"$(DELIM)include ; \
+		fi \
+	done
 ifneq ($(CONFIG_BUILD_KERNEL),y)
 ifneq ($(BUILTIN_REGISTRY),)
 	for f in "${BUILTIN_REGISTRY}"$(DELIM)*.bdat "${BUILTIN_REGISTRY}"$(DELIM)*.pdat ; do \
