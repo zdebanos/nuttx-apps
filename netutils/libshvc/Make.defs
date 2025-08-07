@@ -37,4 +37,7 @@ CXXFLAGS +=  $(INCDIR_PREFIX)$(APPDIR)/netutils/libshvc/$(REL_PATH_TO_INC)
 EXTRA_LIBPATHS += -L$(APPDIR)/netutils/libshvc/$(REL_PATH_TO_LNK)
 EXTRA_LIBS += -lshvchainpack -lshvtree -lulut
 
+EXTRA_APPS_INCPATHS += $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_INC)/shv \
+                       $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_INC)/ulut
+
 endif
