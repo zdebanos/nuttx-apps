@@ -38,7 +38,7 @@ compile-libshv: $(SHVDIR)
 	$(Q) if [ $(COMPILE_EVERYTIME) -eq 1 ] || \
 	        [ "$$(cd $(SHVDIR) && git rev-parse HEAD)" != "$$(cd $(SHVDIR) && git rev-parse origin/dev-zdebanos)" ] || \
 			[ ! -d "./$(SHVDIR)/_compiled" ]; then \
-		( cd $(SHVDIR) && git switch dev-zdebanos && git submodule update --recursive --init ) > /dev/null 2>&1; \
+		( cd $(SHVDIR); git pull; git switch dev-zdebanos; git submodule update --recursive --init ) > /dev/null 2>&1; \
 		make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
 			CC="$(CC)" \
 			CXX="$(CXX)" \
