@@ -37,7 +37,14 @@ CXXFLAGS +=  $(INCDIR_PREFIX)$(APPDIR)/netutils/libshvc/$(REL_PATH_TO_INC)
 EXTRA_LIBPATHS += -L$(APPDIR)/netutils/libshvc/$(REL_PATH_TO_LNK)
 EXTRA_LIBS += -lshvchainpack -lshvtree -lulut
 
+# Specify the paths for the exports.
+
+EXTRA_APPS_LIBS += $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_LNK)/libshvtree.a \
+                   $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_LNK)/libshvchainpack.a \
+                   $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_LNK)/libulut.a
+
 EXTRA_APPS_INCPATHS += $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_INC)/shv \
                        $(APPDIR)/netutils/libshvc/$(REL_PATH_TO_INC)/ulut
+
 
 endif
