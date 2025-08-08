@@ -197,6 +197,22 @@ preconfig: Kconfig
 export:
 ifneq ($(EXPORTDIR),)
 	$(Q) mkdir -p "${EXPORTDIR}"$(DELIM)registry || exit 1;
+	if [ -n "${EXTRA_APPS_LIBS}" ]; then \
+		mkdir -p $(APPDIR)$(DELIM)libcomb; \
+		cp libapps.a $(APPDIR)$(DELIM)libcomb; \
+		for l in ${EXTRA_APPS_LIBS}; do \
+			echo "AR: $${l}"; \
+			cp $${l} $(APPDIR)$(DELIM)libcomb; \
+		done; \
+		cd $(APPDIR)$(DELIM)libcomb; \
+		for l in *.a; do \
+			ar x $${l}; \
+		done; \
+		ar rcs libmerged.a *.o; \
+		mv libmerged.a ..$(DELIM)libapps.a; \
+		cd ..; \
+		rm -rf $(APPDIR)$(DELIM)libcomb; \
+	fi; \
 	for d in ${EXTRA_APPS_INCPATHS}; do \
 		if [ -d "$${d}" ]; then \
 			echo "CP: $${d}" ; \
