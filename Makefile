@@ -201,21 +201,21 @@ ifneq ($(EXPORTDIR),)
 		mkdir -p $(APPDIR)$(DELIM)libcomb; \
 		cp libapps.a $(APPDIR)$(DELIM)libcomb; \
 		for l in ${EXTRA_APPS_LIBS}; do \
-			echo "AR: $${l}"; \
+			echo "AR: $$(basename $${l})"; \
 			cp $${l} $(APPDIR)$(DELIM)libcomb; \
 		done; \
 		cd $(APPDIR)$(DELIM)libcomb; \
 		for l in *.a; do \
-			ar x $${l}; \
+			$(AR_EXTRACT) $${l}; \
 		done; \
-		ar rcs libmerged.a *.o; \
+		$(AR) libmerged.a *.o; \
 		mv libmerged.a ..$(DELIM)libapps.a; \
 		cd ..; \
 		rm -rf $(APPDIR)$(DELIM)libcomb; \
 	fi; \
 	for d in ${EXTRA_APPS_INCPATHS}; do \
 		if [ -d "$${d}" ]; then \
-			echo "CP: $${d}" ; \
+			echo "CP: $$(basename $${d})" ; \
 			cp -r "$${d}" "${EXPORTDIR}"$(DELIM)include ; \
 		fi \
 	done
