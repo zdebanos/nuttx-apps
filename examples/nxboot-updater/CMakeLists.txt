@@ -1,5 +1,5 @@
 # ##############################################################################
-# apps/examples/hello/CMakeLists.txt
+# apps/examples/nxboot-updater/CMakeLists.txt
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -20,14 +20,14 @@
 #
 # ##############################################################################
 
-if(CONFIG_EXAMPLES_HELLO)
+if(CONFIG_EXAMPLES_NXBOOT_UPDATER)
   nuttx_add_application(
     NAME
-    ${CONFIG_EXAMPLES_HELLO_PROGNAME}
+    ${CONFIG_EXAMPLES_NXBOOT_UPDATER_PROGNAME}
     SRCS
-    hello_main.c
+    updater_main.c
     STACKSIZE
-    ${CONFIG_EXAMPLES_HELLO_STACKSIZE}
+    ${CONFIG_EXAMPLES_NXBOOT_UPDATER_STACKSIZE}
     PRIORITY
-    ${CONFIG_EXAMPLES_HELLO_PRIORITY})
+    ${CONFIG_EXAMPLES_NXBOOT_UPDATER_PRIORITY})
 endif()
