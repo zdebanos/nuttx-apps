@@ -53,8 +53,6 @@ download-and-generate-headers: $(SHVDIR)
 	fi
 
 $(TARGETSSHV): $(SHVDIR)
-	@echo "nazdarrrrrrrrrrrr"
-	@echo $(CFLAGS)
 	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
 		CC="$(CC)" \
 		CXX="$(CXX)" \
