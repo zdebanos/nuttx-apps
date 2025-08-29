@@ -1,4 +1,0 @@
-[submodule "examples/shv-fwupdater"]
-	path = examples/shv-fwupdater
-	url = https://github.com/zdebanos/shv-fwupdater.git
-	branch = nuttx-build
