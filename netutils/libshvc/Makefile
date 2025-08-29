@@ -23,9 +23,12 @@
 include $(APPDIR)/Make.defs
 
 # Set this to 1 for development purposes
-COMPILE_EVERYTIME = 0
-
+COMPILE_EVERYTIME = 1
 SHVDIR = shv-libs4c
+TARGETSHVTREE = $(SHVDIR)/_compiled/libshvtree.a
+TARGETSHVCHAINPACK = $(SHVDIR)/_compiled/libshvchainpack.a
+TARGETULUT = $(SHVDIR)/_compiled/libulut.a
+TARGETSSHV = $(TARGETSHVTREE) $(TARGETSHVCHAINPACK) $(TARGETULUT)
 
 $(SHVDIR):
 	git clone https://github.com/silicon-heaven/shv-libs4c $(SHVDIR)
@@ -33,7 +36,7 @@ $(SHVDIR):
 # Compile the library. Also pass all the NuttX Makefile variables.
 # But only in case of a newer library, non-existing _compiled directory
 # or MY_DEBUG set
-compile-libshv: $(SHVDIR)
+download-and-generate-headers: $(SHVDIR)
 	- $(Q) ( cd $(SHVDIR) && git fetch origin dev-zdebanos ) > /dev/null 2>&1
 	$(Q) if [ $(COMPILE_EVERYTIME) -eq 1 ] || \
 	        [ "$$(cd $(SHVDIR) && git rev-parse HEAD)" != "$$(cd $(SHVDIR) && git rev-parse origin/dev-zdebanos)" ] || \
@@ -46,12 +49,24 @@ compile-libshv: $(SHVDIR)
 			CXXFLAGS="$(CXXFLAGS)" \
 			LD="$(LD)" \
 			LDFLAGS="$(LDFLAGS)" \
-			CONFIG_OC_ULUT_TESTS=n; \
+			CONFIG_OC_ULUT_TESTS=n include-pass; \
 	fi
 
-context:: compile-libshv
+$(TARGETSSHV): $(SHVDIR)
+	@echo "nazdarrrrrrrrrrrr"
+	@echo $(CFLAGS)
+	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
+		CC="$(CC)" \
+		CXX="$(CXX)" \
+		CFLAGS="$(CFLAGS)" \
+		CXXFLAGS="$(CXXFLAGS)" \
+		LD="$(LD)" \
+		LDFLAGS="$(LDFLAGS)" \
+		CONFIG_OC_ULUT_TESTS=n
 
-depend:: compile-libshv
+context:: download-and-generate-headers
+
+depend:: $(TARGETSSHV)
 	
 distclean::
 	make -C $(SHVDIR) distclean
