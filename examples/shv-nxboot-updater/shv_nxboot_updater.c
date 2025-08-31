@@ -250,14 +250,11 @@ static shv_node_t *shv_tree_create(void)
                                          &shv_file_node_dmap, 0);
   if (fwupdate_node == NULL)
     {
-#ifdef __NuttX__
       close(flash_fd);
-#endif
       free(tree_root);
       return NULL;
     }
 
-#ifdef __NuttX__
   if (ioctl(flash_fd, MTDIOC_GEOMETRY,
             (unsigned long)((uintptr_t)&geometry)) < 0)
     {
@@ -266,10 +263,8 @@ static shv_node_t *shv_tree_create(void)
       free(fwupdate_node);
       return NULL;
     }
-#endif
 
   fwupdate_node->file_type = SHV_FILE_MTD;
-#ifdef __NuttX__
   fwupdate_node->file_maxsize = geometry.erasesize * geometry.neraseblocks;
   fwupdate_node->file_pagesize = geometry.blocksize;
   fwupdate_node->file_erasesize = geometry.erasesize;
@@ -277,16 +272,8 @@ static shv_node_t *shv_tree_create(void)
   /* Update the fops table in the file node */
 
   fwupdate_node->fops.opener = shv_nxboot_opener;
-#else
-  fwupdate_node->name = "./test.bin";
-  fwupdate_node->file_maxsize = 1 << 25; /* 32 MiB */
-  fwupdate_node->file_pagesize = 1024;
-  fwupdate_node->file_erasesize = 4096;
-#endif
   shv_tree_add_child(tree_root, &fwupdate_node->shv_node);
-#ifdef __NuttX__
   close(flash_fd);
-#endif
 
   dotapp_node = shv_tree_node_new(".app", &shv_dev_dotapp_dmap, 0);
   if (dotapp_node == NULL)
