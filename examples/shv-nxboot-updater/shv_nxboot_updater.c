@@ -335,6 +335,15 @@ static void quit_handler(int signum)
 static void print_help(char *name)
 {
   printf("%s: <user> <passwd> <mnt-point> <ip-addr> <tcp/ip-port>\n", name);
+  puts("SHV Firmware Updater for NXBoot");
+  puts("The SHV tree is comprised of the following nodes:");
+  puts("  - .app     // A standard node, shows info about the app");
+  puts("  - .device  // A standard node, shows info about the device");
+  puts("  - fwUpdate // A file node, abstraction of the NXBoot update "
+       "partition");
+  puts("  - fwStable // A standard node, contains the confirm method to "
+       "confirm");
+  puts("                the validity of the newly booted up image.");
 }
 
 static void attention_cb(shv_con_ctx_t *shv_ctx, enum shv_attention_reason r)
