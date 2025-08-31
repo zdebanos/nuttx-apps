@@ -80,49 +80,49 @@ static sem_t running;
 
 /* ------------------------- ROOT METHODS --------------------------------- */
 
-const shv_method_des_t shv_dev_root_dmap_item_device_type =
+static const shv_method_des_t shv_dev_root_dmap_item_device_type =
 {
   .name = "deviceType",
   .method = shv_root_device_type
 };
 
-const shv_method_des_t * const shv_dev_root_dmap_items[] =
+static const shv_method_des_t * const shv_dev_root_dmap_items[] =
 {
   &shv_dev_root_dmap_item_device_type,
   &shv_dmap_item_dir,
   &shv_dmap_item_ls,
 };
 
-const shv_dmap_t shv_dev_root_dmap =
+static const shv_dmap_t shv_dev_root_dmap =
   SHV_CREATE_NODE_DMAP(root, shv_dev_root_dmap_items);
 
 /* ------------------------- .app METHODS ---------------------------- */
 
-const shv_method_des_t shv_dev_dotapp_dmap_item_vmajor =
+static const shv_method_des_t shv_dev_dotapp_dmap_item_vmajor =
 {
   .name = "shvVersionMajor",
   .method = shv_dotapp_vmajor
 };
 
-const shv_method_des_t shv_dev_dotapp_dmap_item_vminor =
+static const shv_method_des_t shv_dev_dotapp_dmap_item_vminor =
 {
   .name = "shvVersionMinor",
   .method = shv_dotapp_vminor
 };
 
-const shv_method_des_t shv_dev_dotapp_dmap_item_name =
+static const shv_method_des_t shv_dev_dotapp_dmap_item_name =
 {
   .name = "name",
   .method = shv_dotapp_name
 };
 
-const shv_method_des_t shv_dev_dotapp_dmap_item_ping =
+static const shv_method_des_t shv_dev_dotapp_dmap_item_ping =
 {
   .name = "ping",
   .method = shv_dotapp_ping
 };
 
-const shv_method_des_t * const shv_dev_dotapp_dmap_items[] =
+static const shv_method_des_t * const shv_dev_dotapp_dmap_items[] =
 {
   &shv_dmap_item_dir,
   &shv_dmap_item_ls,
@@ -132,25 +132,25 @@ const shv_method_des_t * const shv_dev_dotapp_dmap_items[] =
   &shv_dev_dotapp_dmap_item_vminor,
 };
 
-const shv_dmap_t shv_dev_dotapp_dmap =
+static const shv_dmap_t shv_dev_dotapp_dmap =
   SHV_CREATE_NODE_DMAP(dotapp, shv_dev_dotapp_dmap_items);
 
 /* ------------------------- fwstable METHODS ---------------------------- */
 
-const shv_method_des_t shv_dev_fwstable_dmap_item_confirm =
+static const shv_method_des_t shv_dev_fwstable_dmap_item_confirm =
 {
   .name = "confirm",
   .method = shv_fwstable_confirm
 };
 
-const shv_method_des_t * const shv_dev_fwstable_dmap_items[] =
+static const shv_method_des_t * const shv_dev_fwstable_dmap_items[] =
 {
   &shv_dev_fwstable_dmap_item_confirm,
   &shv_dmap_item_dir,
   &shv_dmap_item_ls
 };
 
-const shv_dmap_t shv_dev_fwstable_dmap =
+static const shv_dmap_t shv_dev_fwstable_dmap =
   SHV_CREATE_NODE_DMAP(dotdevice, shv_dev_fwstable_dmap_items);
 
 /****************************************************************************
