@@ -20,6 +20,10 @@
  *
  ****************************************************************************/
 
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
 #include <shv/tree/shv_tree.h>
 #include <shv/tree/shv_file_node.h>
 #include <shv/tree/shv_connection.h>
@@ -42,34 +46,39 @@
 #include <sys/boardctl.h>
 #endif
 
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+static int shv_nxboot_opener(shv_file_node_t *item);
+static int shv_root_device_type(shv_con_ctx_t * shv_ctx, shv_node_t *item,
+                                int rid);
+static int shv_dotapp_vmajor(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                             int rid);
+static int shv_dotapp_vminor(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                             int rid);
+static int shv_dotapp_name(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                           int rid);
+static int shv_dotapp_ping(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                           int rid);
+static int shv_fwstable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                                int rid);
+static void quit_handler(int signum);
+static void print_help(char *name);
+
+static shv_node_t *shv_tree_create(void);
+static void attention_cb(shv_con_ctx_t *shv_ctx,
+                         enum shv_attention_reason r);
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/* An execution barrier */
+
 static sem_t running;
 
-/* Custom definitions for the file node (NXBoot) */
-
-static int shv_nxboot_opener(shv_file_node_t *item)
-{
-  struct shv_file_node_fctx *fctx = (struct shv_file_node_fctx*) item->fctx;
-  if (!(fctx->flags & SHV_FILE_POSIX_BITFLAG_OPENED))
-    {
-      fctx->fd = nxboot_open_update_partition();
-      if (fctx->fd < 0)
-        {
-          return -1;
-        }
-      fctx->flags |= SHV_FILE_POSIX_BITFLAG_OPENED;
-    }
-  return 0;
-}
-
-// ------------------------- ROOT METHODS ---------------------------------- //
-
-int shv_root_device_type(shv_con_ctx_t * shv_ctx, shv_node_t *item, int rid)
-{
-  const char *str = "SHV4LIBS Testing";
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_str(shv_ctx, rid, str);
-  return 0;
-}
+/* ------------------------- ROOT METHODS --------------------------------- */
 
 const shv_method_des_t shv_dev_root_dmap_item_device_type =
 {
@@ -87,35 +96,7 @@ const shv_method_des_t * const shv_dev_root_dmap_items[] =
 const shv_dmap_t shv_dev_root_dmap =
   SHV_CREATE_NODE_DMAP(root, shv_dev_root_dmap_items);
 
-// ------------------------- .app METHODS ---------------------------- //
-
-int shv_dotapp_vmajor(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_int(shv_ctx, rid, 1);
-  return 0;
-}
-
-int shv_dotapp_vminor(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_int(shv_ctx, rid, 0);
-  return 0;
-}
-
-int shv_dotapp_name(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_str(shv_ctx, rid, "SHV Firmware Updater");
-  return 0;
-}
-
-int shv_dotapp_ping(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_empty_response(shv_ctx, rid);
-  return 0;
-}
+/* ------------------------- .app METHODS ---------------------------- */
 
 const shv_method_des_t shv_dev_dotapp_dmap_item_vmajor =
 {
@@ -154,10 +135,71 @@ const shv_method_des_t * const shv_dev_dotapp_dmap_items[] =
 const shv_dmap_t shv_dev_dotapp_dmap =
   SHV_CREATE_NODE_DMAP(dotapp, shv_dev_dotapp_dmap_items);
 
+/* ------------------------- fwstable METHODS ---------------------------- */
 
-// ------------------------- fwStable METHODS ---------------------------- //
+const shv_method_des_t shv_dev_fwstable_dmap_item_confirm =
+{
+  .name = "confirm",
+  .method = shv_fwstable_confirm
+};
 
-int shv_fwStable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
+const shv_method_des_t * const shv_dev_fwstable_dmap_items[] =
+{
+  &shv_dev_fwstable_dmap_item_confirm,
+  &shv_dmap_item_dir,
+  &shv_dmap_item_ls
+};
+
+const shv_dmap_t shv_dev_fwstable_dmap =
+  SHV_CREATE_NODE_DMAP(dotdevice, shv_dev_fwstable_dmap_items);
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+static int shv_dotapp_vmajor(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                             int rid)
+{
+  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
+  shv_send_int(shv_ctx, rid, 1);
+  return 0;
+}
+
+static int shv_dotapp_vminor(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                             int rid)
+{
+  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
+  shv_send_int(shv_ctx, rid, 0);
+  return 0;
+}
+
+static int shv_dotapp_name(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                           int rid)
+{
+  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
+  shv_send_str(shv_ctx, rid, "SHV Firmware Updater");
+  return 0;
+}
+
+static int shv_dotapp_ping(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                           int rid)
+{
+  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
+  shv_send_empty_response(shv_ctx, rid);
+  return 0;
+}
+
+static int shv_root_device_type(shv_con_ctx_t * shv_ctx, shv_node_t *item,
+                                int rid)
+{
+  const char *str = "SHV4LIBS Testing";
+  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
+  shv_send_str(shv_ctx, rid, str);
+  return 0;
+}
+
+static int shv_fwstable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item,
+                                int rid)
 {
   shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
   nxboot_confirm();
@@ -165,27 +207,28 @@ int shv_fwStable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
   return 0;
 }
 
-const shv_method_des_t shv_dev_fwStable_dmap_item_confirm =
+static int shv_nxboot_opener(shv_file_node_t *item)
 {
-  .name = "confirm",
-  .method = shv_fwStable_confirm
-};
+  struct shv_file_node_fctx *fctx = (struct shv_file_node_fctx *)item->fctx;
+  if (!(fctx->flags & SHV_FILE_POSIX_BITFLAG_OPENED))
+    {
+      fctx->fd = nxboot_open_update_partition();
+      if (fctx->fd < 0)
+        {
+          return -1;
+        }
 
-const shv_method_des_t * const shv_dev_fwStable_dmap_items[] =
+      fctx->flags |= SHV_FILE_POSIX_BITFLAG_OPENED;
+    }
+
+  return 0;
+}
+
+static shv_node_t *shv_tree_create(void)
 {
-  &shv_dev_fwStable_dmap_item_confirm,
-  &shv_dmap_item_dir,
-  &shv_dmap_item_ls
-};
-
-const shv_dmap_t shv_dev_fwStable_dmap =
-  SHV_CREATE_NODE_DMAP(dotdevice, shv_dev_fwStable_dmap_items);
-
-shv_node_t *shv_tree_create(void)
-{
-  shv_node_t *tree_root, *fwStable_node, *dotapp_node;
+  shv_node_t *tree_root, *fwstable_node, *dotapp_node;
   shv_dotdevice_node_t *dotdevice_node;
-  shv_file_node_t *fwUpdate_node;
+  shv_file_node_t *fwupdate_node;
 
   struct mtd_geometry_s geometry;
   int flash_fd;
@@ -203,9 +246,9 @@ shv_node_t *shv_tree_create(void)
       return NULL;
     }
 
-  fwUpdate_node = shv_tree_file_node_new("fwUpdate",
+  fwupdate_node = shv_tree_file_node_new("fwUpdate",
                                          &shv_file_node_dmap, 0);
-  if (fwUpdate_node == NULL)
+  if (fwupdate_node == NULL)
     {
 #ifdef __NuttX__
       close(flash_fd);
@@ -220,26 +263,27 @@ shv_node_t *shv_tree_create(void)
     {
       close(flash_fd);
       free(tree_root);
-      free(fwUpdate_node);
+      free(fwupdate_node);
       return NULL;
     }
 #endif
 
-  fwUpdate_node->file_type = SHV_FILE_MTD;
+  fwupdate_node->file_type = SHV_FILE_MTD;
 #ifdef __NuttX__
-  fwUpdate_node->file_maxsize = geometry.erasesize * geometry.neraseblocks;
-  fwUpdate_node->file_pagesize = geometry.blocksize;
-  fwUpdate_node->file_erasesize = geometry.erasesize;
+  fwupdate_node->file_maxsize = geometry.erasesize * geometry.neraseblocks;
+  fwupdate_node->file_pagesize = geometry.blocksize;
+  fwupdate_node->file_erasesize = geometry.erasesize;
+
   /* Update the fops table in the file node */
 
-  fwUpdate_node->fops.opener = shv_nxboot_opener;
+  fwupdate_node->fops.opener = shv_nxboot_opener;
 #else
-  fwUpdate_node->name = "./test.bin";
-  fwUpdate_node->file_maxsize = 1 << 25; /* 32 MiB */
-  fwUpdate_node->file_pagesize = 1024;
-  fwUpdate_node->file_erasesize = 4096;
+  fwupdate_node->name = "./test.bin";
+  fwupdate_node->file_maxsize = 1 << 25; /* 32 MiB */
+  fwupdate_node->file_pagesize = 1024;
+  fwupdate_node->file_erasesize = 4096;
 #endif
-  shv_tree_add_child(tree_root, &fwUpdate_node->shv_node);
+  shv_tree_add_child(tree_root, &fwupdate_node->shv_node);
 #ifdef __NuttX__
   close(flash_fd);
 #endif
@@ -248,33 +292,36 @@ shv_node_t *shv_tree_create(void)
   if (dotapp_node == NULL)
     {
       free(tree_root);
-      free(fwUpdate_node);
+      free(fwupdate_node);
       return NULL;
     }
+
   shv_tree_add_child(tree_root, dotapp_node);
 
   dotdevice_node = shv_tree_dotdevice_node_new(&shv_dotdevice_dmap, 0);
   if (dotdevice_node == NULL)
     {
       free(tree_root);
-      free(fwUpdate_node);
+      free(fwupdate_node);
       free(dotapp_node);
       return NULL;
     }
+
   dotdevice_node->name = "SHV Compatible Device";
   dotdevice_node->serial_number = "0xDEADBEEF";
   dotdevice_node->version = "0.1.0";
   shv_tree_add_child(tree_root, &dotdevice_node->shv_node);
 
-  fwStable_node = shv_tree_node_new("fwStable", &shv_dev_fwStable_dmap, 0);
-  if (fwStable_node == NULL)
+  fwstable_node = shv_tree_node_new("fwStable", &shv_dev_fwstable_dmap, 0);
+  if (fwstable_node == NULL)
     {
       free(tree_root);
-      free(fwUpdate_node);
+      free(fwupdate_node);
       free(dotapp_node);
       return NULL;
     }
-  shv_tree_add_child(tree_root, fwStable_node);
+
+  shv_tree_add_child(tree_root, fwstable_node);
 
   return tree_root;
 }
@@ -299,6 +346,14 @@ static void attention_cb(shv_con_ctx_t *shv_ctx, enum shv_attention_reason r)
       sem_post(&running);
     }
 }
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: main
+ ****************************************************************************/
 
 int main(int argc, char *argv[])
 {
@@ -335,6 +390,7 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Have you supplied valid params to shv_connection?\n");
       return 1;
     }
+
   puts("SHV Connection Init OK");
 
   tree_root = shv_tree_create();
