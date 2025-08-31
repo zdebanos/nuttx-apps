@@ -22,17 +22,17 @@
 
 include $(APPDIR)/Make.defs
 
-# Set this to 1 for development purposes
-COMPILE_EVERYTIME = 0
-
 SHVDIR = shv-libs4c
 
+# Where to look for the extra object files
+EXTOBJS = $(wildcard ./$(SHVDIR)/_build/user/libs4c/libshvtree/*.o)
+EXTOBJS += $(wildcard ./$(SHVDIR)/_build/user/libs4c/libshvchainpack/*.o)
+EXTOBJS += $(wildcard ./$(SHVDIR)/_build/user/submodule/ulut/ulut/*.o)
+
 $(SHVDIR):
-	git clone https://github.com/silicon-heaven/shv-libs4c $(SHVDIR)
+	$(call CLONE, https://github.com/silicon-heaven/shv-libs4c, $(SHVDIR), )
 	
 # Compile the library. Also pass all the NuttX Makefile variables.
-# But only in case of a newer library, non-existing _compiled directory
-# or MY_DEBUG set
 compile-libshv: $(SHVDIR)
 	- $(Q) ( cd $(SHVDIR) && git fetch origin dev-zdebanos ) > /dev/null 2>&1
 	$(Q) if [ $(COMPILE_EVERYTIME) -eq 1 ] || \
