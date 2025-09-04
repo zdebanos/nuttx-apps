@@ -24,8 +24,8 @@ ifeq ($(CONFIG_NETUTILS_LIBSHVC),y)
 CONFIGURED_APPS += $(APPDIR)/netutils/libshvc
 
 SHVDIR = shv-libs4c
-REL_PATH_TO_INC = "$(SHVDIR)/_compiled/include"
-REL_PATH_TO_LNK = "$(SHVDIR)/_compiled/lib"
+REL_PATH_TO_INC = $(SHVDIR)/_compiled/include
+REL_PATH_TO_LNK = $(SHVDIR)/_compiled/lib
 
 # Make <shv/tree/...> and <shv/chainpack/...> visible
 

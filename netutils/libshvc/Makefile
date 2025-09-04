@@ -24,6 +24,18 @@ include $(APPDIR)/Make.defs
 
 SHVDIR = shv-libs4c
 
+define RUN_OMK_MAKE
+$(1):: $$(SHVDIR)
+	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" $(2) \
+	CC="$(CC)" \
+	CXX="$(CXX)" \
+	CFLAGS="$(CFLAGS)" \
+	CXXFLAGS="$(CXXFLAGS)" \
+	LD="$(LD)" \
+	LDFLAGS="$(LDFLAGS)" \
+	CONFIG_OC_ULUT_TESTS=n
+endef
+
 # Where to look for the extra object files
 EXTOBJS = $(wildcard ./$(SHVDIR)/_build/user/libs4c/libshvtree/*.o)
 EXTOBJS += $(wildcard ./$(SHVDIR)/_build/user/libs4c/libshvchainpack/*.o)
@@ -31,22 +43,12 @@ EXTOBJS += $(wildcard ./$(SHVDIR)/_build/user/submodule/ulut/ulut/*.o)
 
 $(SHVDIR):
 	$(call CLONE, https://github.com/silicon-heaven/shv-libs4c, $(SHVDIR), )
+	( cd $(SHVDIR) && git submodule update --recursive --init ) > /dev/null 2>&1
 	
 # Compile the library. Also pass all the NuttX Makefile variables.
-compile-libshv: $(SHVDIR)
-	$(Q) if [ ! -d "./$(SHVDIR)/_compiled" ]; then \
-		( cd $(SHVDIR); git submodule update --recursive --init ) > /dev/null 2>&1; \
-		make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" \
-			CC="$(CC)" \
-			CXX="$(CXX)" \
-			CFLAGS="$(CFLAGS)" \
-			CXXFLAGS="$(CXXFLAGS)" \
-			LD="$(LD)" \
-			LDFLAGS="$(LDFLAGS)" \
-			CONFIG_OC_ULUT_TESTS=n; \
-	fi
+$(eval $(call RUN_OMK_MAKE, compile-libshv, library-pass))
 
-context:: compile-libshv
+$(eval $(call RUN_OMK_MAKE, context, default-config include-pass))
 
 depend:: compile-libshv
 	
