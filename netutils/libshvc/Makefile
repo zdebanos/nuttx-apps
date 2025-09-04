@@ -25,14 +25,14 @@ include $(APPDIR)/Make.defs
 SHVDIR = shv-libs4c
 
 define RUN_OMK_MAKE
-$(1):: $$(SHVDIR)
+$(1):: $(SHVDIR)
 	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" $(2) \
-	CC="$(CC)" \
-	CXX="$(CXX)" \
-	CFLAGS="$(CFLAGS)" \
-	CXXFLAGS="$(CXXFLAGS)" \
-	LD="$(LD)" \
-	LDFLAGS="$(LDFLAGS)" \
+	CC="$$(CC)" \
+	CXX="$$(CXX)" \
+	CFLAGS="$$(CFLAGS)" \
+	CXXFLAGS="$$(CXXFLAGS)" \
+	LD="$$(LD)" \
+	LDFLAGS="$$(LDFLAGS)" \
 	CONFIG_OC_ULUT_TESTS=n
 endef
 
