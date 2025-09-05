@@ -22,19 +22,17 @@
 
 include $(APPDIR)/Make.defs
 
-SHVDIR = shv-libs4c
+SHVDIR := shv-libs4c
 
-define RUN_OMK_MAKE
-$(1):: $(SHVDIR)
-	make -C $(SHVDIR) CONFIG_SHV_LIBS4C_PLATFORM="nuttx" $(2) \
-	CC="$$(CC)" \
-	CXX="$$(CXX)" \
-	CFLAGS="$$(CFLAGS)" \
-	CXXFLAGS="$$(CXXFLAGS)" \
-	LD="$$(LD)" \
-	LDFLAGS="$$(LDFLAGS)" \
-	CONFIG_OC_ULUT_TESTS=n
-endef
+# Commit hash of the supported shv-libs4c revision
+SHV_LIBS4C_COMMIT_HASH := e2d6cd0f9c8853810ce7da08b832314750f013a0
+
+# Define build parameters for the shv-libs4c makefile.
+# Somehow, the build system in this phase defines __KERNEL__, but ulut
+# does not like this at all.
+MAKE_ARGS = CC="$(CC)" CXX="$(CXX)" CFLAGS="$(filter-out -D__KERNEL__,$(CFLAGS))" \
+            CXXFLAGS="$(CXXFLAGS)" LD="$(LD)"
+			LDFLAGS="$(LDFLAGS)" CONFIG_OC_ULUT_TESTS=n
 
 # Where to look for the extra object files
 EXTOBJS = $(wildcard ./$(SHVDIR)/_build/user/libs4c/libshvtree/*.o)
@@ -42,13 +40,16 @@ EXTOBJS += $(wildcard ./$(SHVDIR)/_build/user/libs4c/libshvchainpack/*.o)
 EXTOBJS += $(wildcard ./$(SHVDIR)/_build/user/submodule/ulut/ulut/*.o)
 
 $(SHVDIR):
-	$(call CLONE, https://github.com/silicon-heaven/shv-libs4c, $(SHVDIR), )
-	( cd $(SHVDIR) && git submodule update --recursive --init ) > /dev/null 2>&1
+	$(call CLONE, https://github.com/silicon-heaven/shv-libs4c, $(SHVDIR),)
+	( cd $(SHVDIR) && \
+	  git submodule update --recursive --init && \
+	  git checkout $(SHV_LIBS4C_COMMIT_HASH)) > $(EMPTYFILE) 2>&1
 	
-# Compile the library. Also pass all the NuttX Makefile variables.
-$(eval $(call RUN_OMK_MAKE, compile-libshv, library-pass))
+compile-libshv: $(SHVDIR)
+	make -C $< CONFIG_SHV_LIBS4C_PLATFORM="nuttx" library-pass $(MAKE_ARGS)
 
-$(eval $(call RUN_OMK_MAKE, context, default-config include-pass))
+context:: $(SHVDIR)
+	make -C $< CONFIG_SHV_LIBS4C_PLATFORM="nuttx" default-config include-pass $(MAKE_ARGS)
 
 depend:: compile-libshv
 	
