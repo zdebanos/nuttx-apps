@@ -25,7 +25,7 @@ include $(APPDIR)/Make.defs
 SHVDIR := shv-libs4c
 
 # Commit hash of the supported shv-libs4c revision
-SHV_LIBS4C_COMMIT_HASH := e2d6cd0f9c8853810ce7da08b832314750f013a0
+SHV_LIBS4C_COMMIT_HASH := 555a008e57f2735b7d6fc598154c812821d17e74
 
 # Define build parameters for the shv-libs4c makefile.
 # Somehow, the build system in this phase defines __KERNEL__, but ulut

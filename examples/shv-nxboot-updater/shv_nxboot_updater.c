@@ -49,16 +49,16 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static int shv_nxboot_opener(shv_file_node_t *item);
-static int shv_fwstable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                int rid);
-static int shv_fwstable_get(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                            int rid);
+static int shv_nxboot_opener(struct shv_file_node *item);
+static int shv_fwstable_confirm(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid);
+static int shv_fwstable_get(struct shv_con_ctx *shv_ctx,
+                            struct shv_node *item, int rid);
 static void quit_handler(int signum);
 static void print_help(char *name);
 
-static shv_node_t *shv_tree_create(void);
-static void attention_cb(shv_con_ctx_t *shv_ctx,
+static struct shv_node *shv_tree_create(void);
+static void attention_cb(struct shv_con_ctx *shv_ctx,
                          enum shv_attention_reason r);
 
 /****************************************************************************
@@ -71,30 +71,30 @@ static sem_t running;
 
 /* ------------------------- ROOT METHODS --------------------------------- */
 
-static const shv_method_des_t * const shv_dev_root_dmap_items[] =
+static const struct shv_method_des * const shv_dev_root_dmap_items[] =
 {
   &shv_dmap_item_dir,
   &shv_dmap_item_ls,
 };
 
-static const shv_dmap_t shv_dev_root_dmap =
+static const struct shv_dmap shv_dev_root_dmap =
   SHV_CREATE_NODE_DMAP(root, shv_dev_root_dmap_items);
 
 /* ------------------------- fwstable METHODS ---------------------------- */
 
-static const shv_method_des_t shv_dev_fwstable_dmap_item_confirm =
+static const struct shv_method_des shv_dev_fwstable_dmap_item_confirm =
 {
   .name = "confirm",
   .method = shv_fwstable_confirm
 };
 
-static const shv_method_des_t shv_dev_fwstable_dmap_item_get =
+static const struct shv_method_des shv_dev_fwstable_dmap_item_get =
 {
   .name = "get",
   .method = shv_fwstable_get
 };
 
-static const shv_method_des_t * const shv_dev_fwstable_dmap_items[] =
+static const struct shv_method_des * const shv_dev_fwstable_dmap_items[] =
 {
   &shv_dev_fwstable_dmap_item_confirm,
   &shv_dmap_item_dir,
@@ -102,15 +102,15 @@ static const shv_method_des_t * const shv_dev_fwstable_dmap_items[] =
   &shv_dmap_item_ls
 };
 
-static const shv_dmap_t shv_dev_fwstable_dmap =
+static const struct shv_dmap shv_dev_fwstable_dmap =
   SHV_CREATE_NODE_DMAP(dotdevice, shv_dev_fwstable_dmap_items);
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static int shv_fwstable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                int rid)
+static int shv_fwstable_confirm(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid)
 {
   shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
   nxboot_confirm();
@@ -118,8 +118,8 @@ static int shv_fwstable_confirm(shv_con_ctx_t *shv_ctx, shv_node_t *item,
   return 0;
 }
 
-static int shv_fwstable_get(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                            int rid)
+static int shv_fwstable_get(struct shv_con_ctx *shv_ctx,
+                            struct shv_node *item, int rid)
 {
   shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
   int ret = nxboot_get_confirm();
@@ -136,7 +136,7 @@ static int shv_fwstable_get(shv_con_ctx_t *shv_ctx, shv_node_t *item,
   return 0;
 }
 
-static int shv_nxboot_opener(shv_file_node_t *item)
+static int shv_nxboot_opener(struct shv_file_node *item)
 {
   struct shv_file_node_fctx *fctx = (struct shv_file_node_fctx *)item->fctx;
   if (!(fctx->flags & SHV_FILE_POSIX_BITFLAG_OPENED))
@@ -153,12 +153,13 @@ static int shv_nxboot_opener(shv_file_node_t *item)
   return 0;
 }
 
-static shv_node_t *shv_tree_create(void)
+static struct shv_node *shv_tree_create(void)
 {
-  shv_node_t           *tree_root, *fwstable_node;
-  shv_dotdevice_node_t *dotdevice_node;
-  shv_file_node_t      *fwupdate_node;
-  shv_dotapp_node_t    *dotapp_node;
+  struct shv_node           *tree_root;
+  struct shv_node           *fwstable_node;
+  struct shv_dotdevice_node *dotdevice_node;
+  struct shv_file_node      *fwupdate_node;
+  struct shv_dotapp_node    *dotapp_node;
 
   struct mtd_geometry_s geometry;
   int flash_fd;
@@ -266,7 +267,8 @@ static void print_help(char *name)
   puts("                the validity of the newly booted up image.");
 }
 
-static void attention_cb(shv_con_ctx_t *shv_ctx, enum shv_attention_reason r)
+static void attention_cb(struct shv_con_ctx *shv_ctx,
+                         enum shv_attention_reason r)
 {
   if (r == SHV_ATTENTION_ERROR)
     {
@@ -290,8 +292,8 @@ int main(int argc, char *argv[])
 
   int ret;
   struct shv_connection connection;
-  shv_node_t *tree_root;
-  shv_con_ctx_t *ctx;
+  struct shv_node *tree_root;
+  struct shv_con_ctx *ctx;
   const int comthrd_prio = CONFIG_EXAMPLES_SHV_NXBOOT_UPDATER_PRIORITY - 1;
 
   /* Initialize the communication. But only if parameters are passed. */

@@ -41,18 +41,18 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static int shv_nuttxtesting_set(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                int rid);
-static int shv_nuttxtesting_get(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                 int rid);
-static int shv_nuttxtesting_art(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                 int rid);
+static int shv_nuttxtesting_set(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid);
+static int shv_nuttxtesting_get(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid);
+static int shv_nuttxtesting_art(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid);
 
 static void quit_handler(int signum);
 static void print_help(char *name);
 
-static shv_node_t *shv_tree_create_dynamically(int mode);
-static void attention_cb(shv_con_ctx_t *shv_ctx,
+static struct shv_node *shv_tree_create_dynamically(int mode);
+static void attention_cb(struct shv_con_ctx *shv_ctx,
                          enum shv_attention_reason r);
 
 /****************************************************************************
@@ -69,36 +69,36 @@ static int g_testing_val;
 
 /* ------------------------- ROOT METHODS --------------------------------- */
 
-static const shv_method_des_t * const shv_dev_root_dmap_items[] =
+static const struct shv_method_des * const shv_dev_root_dmap_items[] =
 {
   &shv_dmap_item_dir,
   &shv_dmap_item_ls,
 };
 
-static const shv_dmap_t shv_dev_root_dmap =
+static const struct shv_dmap shv_dev_root_dmap =
   SHV_CREATE_NODE_DMAP(root, shv_dev_root_dmap_items);
 
 /* ----------------------- nuttxtesting METHODS -------------------------- */
 
-static const shv_method_des_t shv_dev_nuttxtesting_dmap_item_set =
+static const struct shv_method_des shv_dev_nuttxtesting_dmap_item_set =
 {
   .name = "setTestingVal",
   .method = shv_nuttxtesting_set
 };
 
-static const shv_method_des_t shv_dev_nuttxtesting_dmap_item_get =
+static const struct shv_method_des shv_dev_nuttxtesting_dmap_item_get =
 {
   .name = "getTestingVal",
   .method = shv_nuttxtesting_get
 };
 
-static const shv_method_des_t shv_dev_nuttxtesting_dmap_item_art =
+static const struct shv_method_des shv_dev_nuttxtesting_dmap_item_art =
 {
   .name = "asciiArt",
   .method = shv_nuttxtesting_art
 };
 
-static const shv_method_des_t *const shv_dev_nuttxtesting_dmap_items[] =
+static const struct shv_method_des *const shv_dev_nuttxtesting_dmap_items[] =
 {
   &shv_dev_nuttxtesting_dmap_item_art,
   &shv_dmap_item_dir,
@@ -107,19 +107,19 @@ static const shv_method_des_t *const shv_dev_nuttxtesting_dmap_items[] =
   &shv_dev_nuttxtesting_dmap_item_set
 };
 
-static const shv_dmap_t shv_dev_nuttxtesting_dmap =
+static const struct shv_dmap shv_dev_nuttxtesting_dmap =
   SHV_CREATE_NODE_DMAP(nuttxtesting, shv_dev_nuttxtesting_dmap_items);
 
 /* ------------------- Static const tree root creation ------------------- */
 
 /* First, define all static nodes */
 
-static const shv_dotdevice_node_t shv_static_node_dotdevice =
+static const struct shv_dotdevice_node shv_static_node_dotdevice =
 {
   .shv_node =
   {
     .name = ".device",
-    .dir = UL_CAST_UNQ1(shv_dmap_t *, &shv_dotdevice_dmap),
+    .dir = UL_CAST_UNQ1(struct shv_dmap *, &shv_dotdevice_dmap),
     .children =
     {
       .mode = (SHV_NLIST_MODE_GSA | SHV_NLIST_MODE_STATIC)
@@ -135,12 +135,12 @@ static const shv_dotdevice_node_t shv_static_node_dotdevice =
   .version = "0.1.0"
 };
 
-static const shv_dotapp_node_t shv_static_node_dotapp =
+static const struct shv_dotapp_node shv_static_node_dotapp =
 {
   .shv_node =
   {
     .name = ".app",
-    .dir = UL_CAST_UNQ1(shv_dmap_t *, &shv_dotapp_dmap),
+    .dir = UL_CAST_UNQ1(struct shv_dmap *, &shv_dotapp_dmap),
     .children =
     {
       .mode = (SHV_NLIST_MODE_GSA | SHV_NLIST_MODE_STATIC)
@@ -154,10 +154,10 @@ static const shv_dotapp_node_t shv_static_node_dotapp =
   .version = "1.0.0"
 };
 
-static const shv_node_t shv_static_node_nuttxtesting =
+static const struct shv_node shv_static_node_nuttxtesting =
 {
   .name = "nuttxTesting",
-  .dir = UL_CAST_UNQ1(shv_dmap_t *, &shv_dev_nuttxtesting_dmap),
+  .dir = UL_CAST_UNQ1(struct shv_dmap *, &shv_dev_nuttxtesting_dmap),
   .children =
   {
     .mode = (SHV_NLIST_MODE_GSA | SHV_NLIST_MODE_STATIC)
@@ -166,7 +166,7 @@ static const shv_node_t shv_static_node_nuttxtesting =
 
 /* Now, define tree root's children */
 
-const shv_node_t *const shv_static_tree_root_items[] =
+const struct shv_node *const shv_static_tree_root_items[] =
 {
   &shv_static_node_dotapp.shv_node,
   &shv_static_node_dotdevice.shv_node,
@@ -177,9 +177,9 @@ const shv_node_t *const shv_static_tree_root_items[] =
  * but an automated code generator should have no problem with this!
  */
 
-const shv_node_t shv_static_tree_root =
+const struct shv_node shv_static_tree_root =
 {
-  .dir = UL_CAST_UNQ1(shv_dmap_t *, &shv_dev_root_dmap),
+  .dir = UL_CAST_UNQ1(struct shv_dmap *, &shv_dev_root_dmap),
   .children =
   {
     .mode = (SHV_NLIST_MODE_GSA | SHV_NLIST_MODE_STATIC),
@@ -203,8 +203,8 @@ const shv_node_t shv_static_tree_root =
  * Private Functions
  ****************************************************************************/
 
-static int shv_nuttxtesting_set(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                int rid)
+static int shv_nuttxtesting_set(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid)
 {
   shv_unpack_data(&shv_ctx->unpack_ctx, &g_testing_val, 0);
   printf("Testing val set to %d\n", g_testing_val);
@@ -212,16 +212,16 @@ static int shv_nuttxtesting_set(shv_con_ctx_t *shv_ctx, shv_node_t *item,
   return 0;
 }
 
-static int shv_nuttxtesting_get(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                 int rid)
+static int shv_nuttxtesting_get(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid)
 {
   shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
   shv_send_int(shv_ctx, rid, g_testing_val);
   return 0;
 }
 
-static int shv_nuttxtesting_art(shv_con_ctx_t *shv_ctx, shv_node_t *item,
-                                 int rid)
+static int shv_nuttxtesting_art(struct shv_con_ctx *shv_ctx,
+                                struct shv_node *item, int rid)
 {
   /* Generated from https://budavariam.github.io/asciiart-text/ */
 
@@ -235,12 +235,12 @@ static int shv_nuttxtesting_art(shv_con_ctx_t *shv_ctx, shv_node_t *item,
   return 0;
 }
 
-static shv_node_t *shv_tree_create_dynamically(int mode)
+static struct shv_node *shv_tree_create_dynamically(int mode)
 {
-  shv_node_t           *tree_root;
-  shv_dotapp_node_t    *dotapp_node;
-  shv_node_t           *nuttxtesting_node;
-  shv_dotdevice_node_t *dotdevice_node;
+  struct shv_node           *tree_root;
+  struct shv_dotapp_node    *dotapp_node;
+  struct shv_node           *nuttxtesting_node;
+  struct shv_dotdevice_node *dotdevice_node;
 
   tree_root = shv_tree_node_new("", &shv_dev_root_dmap, mode);
   if (tree_root == NULL)
@@ -309,7 +309,8 @@ static void print_help(char *name)
   puts("     a continuous array with binary searching.");
 }
 
-static void attention_cb(shv_con_ctx_t *shv_ctx, enum shv_attention_reason r)
+static void attention_cb(struct shv_con_ctx *shv_ctx,
+                         enum shv_attention_reason r)
 {
   if (r == SHV_ATTENTION_ERROR)
     {
@@ -333,8 +334,8 @@ int main(int argc, char *argv[])
 
   int ret;
   struct shv_connection connection;
-  const shv_node_t *tree_root;
-  shv_con_ctx_t *ctx;
+  const struct shv_node *tree_root;
+  struct shv_con_ctx *ctx;
   int alloc_mode = SHV_NLIST_MODE_GAVL;
   const char *user;
   const char *passwd;
@@ -397,7 +398,8 @@ int main(int argc, char *argv[])
     }
 
   puts("SHV Tree created!");
-  ctx = shv_com_init((shv_node_t *)tree_root, &connection, attention_cb);
+  ctx = shv_com_init((struct shv_node *)tree_root, &connection,
+                     attention_cb);
   if (ctx == NULL)
     {
       fprintf(stderr, "Can't establish the comm with the broker.\n");
