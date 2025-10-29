@@ -22,12 +22,8 @@ import asyncio
 import io
 import zlib
 
-<<<<<<< HEAD
 from shv import RpcUrl, SHVBytes, SHVValueClient
 
-=======
-from shv import SHVBytes, RpcUrl, SHVValueClient
->>>>>>> 6d8046dd9 (examples/shv-nxboot-updater: use downgraded pyshv==0.8.0)
 
 async def shv_flasher(
     connection: str, name: str, path_to_root: str, queue: asyncio.Queue | None
