@@ -25,7 +25,7 @@ include $(APPDIR)/Make.defs
 SHVDIR := shv-libs4c
 
 # Commit hash of the supported shv-libs4c revision
-SHV_LIBS4C_COMMIT_HASH := 149cf26b71c73b9d5f59b5b21d5b079b1a1150c1
+SHV_LIBS4C_COMMIT_HASH := 44014938e014e83a4ef13b637acfb7a51cc5c6b8
 
 SHV_LIBS4C_TARGZ := shv-libs4c-$(SHV_LIBS4C_COMMIT_HASH).tar.gz
 
