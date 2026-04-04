@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ############################################################################
-# apps/examples/shv-nxboot-updater/update-script/gui.py
+# apps/examples/shv-nxboot-updater/update-script/tui.py
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -25,11 +25,11 @@ import asyncio
 import logging
 import sys
 import rich
-from rich.progress import Progress
+import rich.markup
 import os
-from typing import Any
+from rich.progress import Progress
 
-from shvconfirm import shv_confirm
+from shvconfirm import shv_confirm, ConfirmStep
 from shvflasher import shv_flasher, FlashStep
 
 log_levels = (
@@ -41,7 +41,7 @@ log_levels = (
 )
 
 def get_parser():
-    """Parse passed arguments and return result."""
+    """Build and return the argument parser for the TUI script."""
     parser = argparse.ArgumentParser(
         description="SHV NXboot Update Python script"
     )
@@ -62,7 +62,7 @@ def get_parser():
         "--image",
         dest="image",
         type=str,
-        default="nuttx.nximg",
+        default=os.path.join(os.path.dirname(sys.argv[0]), "nuttx.nximg"),
         help="Image path",
     )
     parser.add_argument(
@@ -91,15 +91,22 @@ def get_parser():
     return parser
 
 async def do_flash(url: str, path_to_img: str, path_to_root: str, method_call_timeout: float):
+    """Run the flash operation and display progress using rich."""
+    def _on_task_done(t: asyncio.Task):
+        if not t.cancelled() and t.exception() is not None:
+            queue.put_nowait([FlashStep.END_ERROR, f"shv_flasher ended with exception {str(t.exception())}."])
+
     queue: asyncio.Queue = asyncio.Queue()
     task = asyncio.create_task(shv_flasher(url, path_to_img, path_to_root, queue, method_call_timeout))
+
+    task.add_done_callback(_on_task_done)
     progress = None
     task_id = None
     while True:
         val: [FlashStep, int | str] = await queue.get()
         match val[0]:
             case FlashStep.INFO:
-                rich.print(f"[cyan]INFO:[/cyan] {str(val[1])}")
+                rich.print(f"[cyan]INFO:[/cyan] {rich.markup.escape(str(val[1]))}")
             case FlashStep.WRITE_PROGRESS:
                 if progress is None:
                     progress = Progress()
@@ -119,7 +126,7 @@ async def do_flash(url: str, path_to_img: str, path_to_root: str, method_call_ti
                 if progress is not None and task_id is not None:
                     progress.stop()
                     progress.remove_task(task_id)
-                rich.print(f"[green]Flashing operation succesful![/green]")
+                rich.print(f"[green]Flashing operation successful![/green]")
                 break
             case FlashStep.END_ERROR:
                 if progress is not None:
@@ -127,11 +134,33 @@ async def do_flash(url: str, path_to_img: str, path_to_root: str, method_call_ti
                     progress.remove_task(task_id)
                 rich.print(f"[red]ERROR:[/red] {str(val[1])}")
                 break
+    await task
 
 async def do_confirm(url: str, path_to_root: str, method_call_timeout: float):
-    pass
+    """Run the confirm operation and report result using rich."""
+
+    def _on_task_done(t: asyncio.Task):
+        if not t.cancelled() and t.exception() is not None:
+            queue.put_nowait([ConfirmStep.END_ERROR, f"shv_confirm ended with exception {str(t.exception())}."])
+
+    queue: asyncio.Queue = asyncio.Queue()
+    task = asyncio.create_task(shv_confirm(url, path_to_root, queue, method_call_timeout))
+    task.add_done_callback(_on_task_done)
+    while True:
+        val: [ConfirmStep, int | str] = await queue.get()
+        match val[0]:
+            case ConfirmStep.INFO:
+                rich.print(f"[cyan]INFO:[/cyan] {rich.markup.escape(str(val[1]))}")
+            case ConfirmStep.END_OK:
+                rich.print(f"[green]Confirm operation successful![/green]")
+                break
+            case ConfirmStep.END_ERROR:
+                rich.print(f"[red]ERROR:[/red] {str(val[1])}")
+                break
+    await task
 
 def tui_main() -> None:
+    """Entry point — parse arguments and dispatch to flash or confirm."""
     parser = get_parser()
     args = parser.parse_args()
     logging.basicConfig(
