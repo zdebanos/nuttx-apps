@@ -23,14 +23,12 @@
 import argparse
 import asyncio
 import logging
-import sys
+import os
+
 import rich
 from rich.progress import Progress
-import os
-from typing import Any
-
-from shvconfirm import shv_confirm
-from shvflasher import shv_flasher, FlashStep
+from shvconfirm import ConfirmStep, shv_confirm
+from shvflasher import FlashStep, shv_flasher
 
 log_levels = (
     logging.DEBUG,
@@ -40,11 +38,10 @@ log_levels = (
     logging.CRITICAL,
 )
 
+
 def get_parser():
     """Parse passed arguments and return result."""
-    parser = argparse.ArgumentParser(
-        description="SHV NXboot Update Python script"
-    )
+    parser = argparse.ArgumentParser(description="SHV NXboot Update Python script")
     parser.add_argument(
         "-v",
         action="count",
@@ -86,13 +83,18 @@ def get_parser():
         "--operation",
         type=str,
         default="flash",
-        help="Requested operation of this script, supported options: flash, confirm"
+        help="Requested operation of this script, supported options: flash, confirm. Default=flash",
     )
     return parser
 
-async def do_flash(url: str, path_to_img: str, path_to_root: str, method_call_timeout: float):
+
+async def do_flash(
+    url: str, path_to_img: str, path_to_root: str, method_call_timeout: float
+):
     queue: asyncio.Queue = asyncio.Queue()
-    task = asyncio.create_task(shv_flasher(url, path_to_img, path_to_root, queue, method_call_timeout))
+    asyncio.create_task(
+        shv_flasher(url, path_to_img, path_to_root, queue, method_call_timeout)
+    )
     progress = None
     task_id = None
     while True:
@@ -104,9 +106,11 @@ async def do_flash(url: str, path_to_img: str, path_to_root: str, method_call_ti
                 if progress is None:
                     progress = Progress()
                     progress.start()
-                    task_id = progress.add_task(f"[cyan]Flashing {os.path.basename(path_to_img)}",
-                                                total=100,
-                                                completed=0)
+                    task_id = progress.add_task(
+                        f"[cyan]Flashing {os.path.basename(path_to_img)}",
+                        total=100,
+                        completed=0,
+                    )
                 progress.update(task_id, completed=int(val[1]))
             case FlashStep.WRITE_COMPLETE:
                 rich.print("[cyan]INFO:[/cyan] Image sent!")
@@ -119,17 +123,34 @@ async def do_flash(url: str, path_to_img: str, path_to_root: str, method_call_ti
                 if progress is not None and task_id is not None:
                     progress.stop()
                     progress.remove_task(task_id)
-                rich.print(f"[green]Flashing operation succesful![/green]")
+                rich.print("[green]Flashing operation succesful![/green]")
                 break
             case FlashStep.END_ERROR:
                 if progress is not None:
                     progress.stop()
                     progress.remove_task(task_id)
-                rich.print(f"[red]ERROR:[/red] {str(val[1])}")
+                rich.print("[red]ERROR:[/red] {str(val[1])}")
                 break
 
+
 async def do_confirm(url: str, path_to_root: str, method_call_timeout: float):
-    pass
+    queue: asyncio.Queue = asyncio.Queue()
+    task = asyncio.create_task(
+        shv_confirm(url, path_to_root, queue, method_call_timeout)
+    )
+    while True:
+        val: [ConfirmStep, int | str] = await queue.get()
+        match val[0]:
+            case ConfirmStep.INFO:
+                rich.print(f"[cyan]INFO:[/cyan] {str(val[1])}")
+            case ConfirmStep.END_OK:
+                rich.print("[green]Confirm operation succesful![/green]")
+                break
+            case ConfirmStep.END_ERROR:
+                rich.print(f"[red]ERROR:[/red] {str(val[1])}")
+                break
+    await task
+
 
 def tui_main() -> None:
     parser = get_parser()
@@ -149,9 +170,16 @@ def tui_main() -> None:
     METHOD_CALL_TIMEOUT = 5
     match args.operation:
         case "flash":
-            asyncio.run(do_flash(args.shv_server, args.image, args.target_mount, METHOD_CALL_TIMEOUT))
+            asyncio.run(
+                do_flash(
+                    args.shv_server, args.image, args.target_mount, METHOD_CALL_TIMEOUT
+                )
+            )
         case "confirm":
-            asyncio.run(do_confirm(args.shv_server, args.target_mount, METHOD_CALL_TIMEOUT))
+            asyncio.run(
+                do_confirm(args.shv_server, args.target_mount, METHOD_CALL_TIMEOUT)
+            )
+
 
 if __name__ == "__main__":
     tui_main()
